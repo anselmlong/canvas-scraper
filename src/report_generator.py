@@ -1,0 +1,160 @@
+"""Report generator for creating download summaries."""
+
+import logging
+from typing import Dict, Any, List
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+
+logger = logging.getLogger(__name__)
+
+
+class ReportGenerator:
+    """Generates download reports for email notifications."""
+
+    def __init__(self, file_organizer):
+        """Initialize report generator.
+
+        Args:
+            file_organizer: FileOrganizer instance
+        """
+        self.file_organizer = file_organizer
+
+    def generate_report(
+        self,
+        new_downloads: List[Any],
+        updated_downloads: List[Any],
+        skipped_files: List[Dict[str, Any]],
+        failed_downloads: List[Any],
+        new_courses: List[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Generate comprehensive download report.
+
+        Args:
+            new_downloads: List of DownloadResult for new files
+            updated_downloads: List of DownloadResult for updated files
+            skipped_files: List of skipped file records from DB
+            failed_downloads: List of DownloadResult for failed downloads
+            new_courses: List of newly detected courses
+
+        Returns:
+            Report data dict for email template
+        """
+        # Group files by course
+        new_files_by_course = self._group_by_course(new_downloads)
+        updated_files_by_course = self._group_by_course(updated_downloads)
+        skipped_files_by_course = self._group_skipped_by_course(skipped_files)
+        failed_files_by_course = self._group_failed_by_course(failed_downloads)
+
+        # Calculate totals
+        total_size_bytes = sum(
+            d.task.size_bytes for d in new_downloads + updated_downloads
+        )
+
+        report = {
+            "timestamp": datetime.now().strftime("%B %d, %Y at %I:%M %p"),
+            "new_count": len(new_downloads),
+            "updated_count": len(updated_downloads),
+            "skipped_count": len(skipped_files),
+            "failed_count": len(failed_downloads),
+            "total_size_mb": f"{total_size_bytes / 1024 / 1024:.1f}",
+            "new_files": new_files_by_course,
+            "updated_files": updated_files_by_course,
+            "skipped_files": skipped_files_by_course,
+            "failed_files": failed_files_by_course,
+            "new_courses": new_courses,
+            "next_run_time": self._get_next_run_time(),
+        }
+
+        logger.info(
+            f"Generated report: {len(new_downloads)} new, {len(updated_downloads)} updated"
+        )
+
+        return report
+
+    def _group_by_course(
+        self, download_results: List[Any]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Group download results by course.
+
+        Args:
+            download_results: List of DownloadResult objects
+
+        Returns:
+            Dict mapping course name to list of file info dicts
+        """
+        grouped = defaultdict(list)
+
+        for result in download_results:
+            task = result.task
+            file_info = {
+                "relative_path": self.file_organizer.get_relative_path(
+                    task.destination
+                ),
+                "size": self.file_organizer.format_size(task.size_bytes),
+                "filename": task.filename,
+            }
+            grouped[task.course_name].append(file_info)
+
+        return dict(grouped)
+
+    def _group_skipped_by_course(
+        self, skipped_files: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Group skipped files by course.
+
+        Args:
+            skipped_files: List of skipped file records
+
+        Returns:
+            Dict mapping course name to list of file info dicts
+        """
+        grouped = defaultdict(list)
+
+        for file_record in skipped_files:
+            file_info = {
+                "filename": file_record["filename"],
+                "size": self.file_organizer.format_size(file_record["size_bytes"]),
+                "folder_path": file_record["folder_path"] or "Root",
+                "reason": file_record["skip_reason"],
+                "canvas_url": file_record["canvas_url"],
+            }
+            grouped[file_record["course_name"]].append(file_info)
+
+        return dict(grouped)
+
+    def _group_failed_by_course(
+        self, failed_results: List[Any]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Group failed downloads by course.
+
+        Args:
+            failed_results: List of DownloadResult objects for failures
+
+        Returns:
+            Dict mapping course name to list of file info dicts
+        """
+        grouped = defaultdict(list)
+
+        for result in failed_results:
+            task = result.task
+            file_info = {"filename": task.filename, "error": result.error_message}
+            grouped[task.course_name].append(file_info)
+
+        return dict(grouped)
+
+    def _get_next_run_time(self) -> str:
+        """Get formatted next run time.
+
+        Returns:
+            Formatted next run time string
+        """
+        # Assume daily at noon
+        now = datetime.now()
+        next_run = now.replace(hour=12, minute=0, second=0, microsecond=0)
+
+        # If already past noon today, schedule for tomorrow
+        if now.hour >= 12:
+            next_run += timedelta(days=1)
+
+        return next_run.strftime("%B %d, %Y at %I:%M %p")

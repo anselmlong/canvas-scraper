@@ -1,0 +1,51 @@
+canvas:
+  base_url: "https://canvas.university.edu"
+
+download:
+  base_path: "~/CanvasFiles"
+  max_file_size_mb: 50
+  concurrent_downloads: 3
+
+filters:
+  # Video extensions (never download)
+  extension_blacklist:
+    - .mp4
+    - .avi
+    - .mov
+    - .mkv
+    - .webm
+    - .flv
+    - .wmv
+    - .m4v
+    - .mpeg
+    - .mpg
+    - .epub
+    - .mobi
+  
+  # Name patterns suggesting unwanted content
+  name_patterns_to_skip:
+    - textbook
+    - ebook
+    - full book
+    - recording
+    - lecture recording
+    - video lecture
+  
+  # Smart rules
+  pdf_max_size_mb: 30
+
+courses:
+  sync_mode: "whitelist"
+  whitelist: []
+
+notification:
+  email:
+    enabled: true
+    recipient: ""
+    smtp_server: "smtp.gmail.com"
+    smtp_port: 587
+    from_name: "Canvas Scraper"
+
+scheduling:
+  enabled: true
+  cron_time: "12:00"
