@@ -1,20 +1,43 @@
 # Environment and secrets
 .env
 *.env
+.env.*
+!.env.example
 venv/
 env/
 .venv/
 
-# Configuration (may contain user-specific paths)
+# Configuration files (may contain API tokens, paths, emails)
 config.yaml
+config.yml
+config.json
+*.local.yaml
+*.local.yml
 
-# Database
+# Credentials and tokens
+credentials.json
+secrets.json
+token.txt
+api_token.txt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Database (contains file metadata and history)
 data/*.db
 data/*.db-journal
+data/*.sqlite
+data/*.sqlite3
+*.db
+*.sqlite
+*.sqlite3
 
-# Logs
+# Logs (may contain URLs, file names, or error traces)
 logs/*.log
 logs/*.log.*
+*.log
+.logs/
 
 # Python
 __pycache__/
@@ -51,3 +74,34 @@ Thumbs.db
 
 # Downloaded files (user's Canvas files)
 CanvasFiles/
+downloads/
+
+# Backup files (may contain sensitive data)
+*.backup
+*.bak
+*.old
+backup/
+backups/
+
+# Email reports (may contain personal info)
+reports/
+*.html.sent
+
+# Test files with real data
+test_config.yaml
+test_data/
+fixtures/
+
+# macOS specific
+.AppleDouble
+.LSOverride
+
+# Windows specific  
+desktop.ini
+$RECYCLE.BIN/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+tmp/

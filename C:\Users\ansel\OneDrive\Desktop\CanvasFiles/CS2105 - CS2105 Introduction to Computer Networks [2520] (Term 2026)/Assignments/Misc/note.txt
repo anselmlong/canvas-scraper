@@ -1,4 +1,0 @@
-Details of the file(s) found in this folder:
-
-1. common.sh: used for Assignment 1, to remove the -lnsl flag for gcc and g++ (for C and C++ language).
-This should be placed in the test folder, overwriting the old file.
