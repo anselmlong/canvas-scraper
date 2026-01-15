@@ -71,7 +71,8 @@ If you prefer to configure manually:
    - Go to Account → Settings
    - Scroll to "Approved Integrations"
    - Click "+ New Access Token"
-   - Copy the generated token
+   - Enter a purpose (e.g., "canvas-scraper") and optional expiry date
+   - Copy the generated token immediately (Canvas won’t show it again)
 
 2. **Get Gmail App Password**:
    - Enable 2-Step Verification on your Google account
@@ -91,6 +92,7 @@ cp .env.example .env
 ```bash
 cp config.example.yaml config.yaml
 # Edit config.yaml with your settings
+# For NUS, set: canvas.base_url: "https://canvas.nus.edu.sg/"
 ```
 
 ## Usage

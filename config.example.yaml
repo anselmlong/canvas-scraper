@@ -1,5 +1,5 @@
 canvas:
-  base_url: "https://canvas.university.edu"
+  base_url: "https://canvas.nus.edu.sg/"
 
 download:
   base_path: "~/CanvasFiles"

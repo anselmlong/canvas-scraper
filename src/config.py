@@ -37,7 +37,7 @@ class Config:
     def _get_default_config(self) -> Dict[str, Any]:
         """Return default configuration."""
         return {
-            "canvas": {"base_url": ""},
+            "canvas": {"base_url": "https://canvas.nus.edu.sg/"},
             "download": {
                 "base_path": "~/CanvasFiles",
                 "max_file_size_mb": 50,

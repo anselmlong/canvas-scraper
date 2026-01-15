@@ -280,9 +280,14 @@ def setup_wizard(config: Config):
 
     # Canvas configuration
     print("Step 1: Canvas Configuration\n")
+
+    default_base_url = "https://canvas.nus.edu.sg/"
     base_url = input(
-        "Enter your Canvas base URL (e.g., https://canvas.university.edu): "
+        f"Enter your Canvas base URL (default: {default_base_url}): "
     ).strip()
+    if not base_url:
+        base_url = default_base_url
+
     config.set("canvas.base_url", base_url)
 
     api_token = input("\nEnter your Canvas API token: ").strip()
