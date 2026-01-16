@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Dict, Any
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.utils import formataddr
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -31,12 +32,20 @@ class EmailNotifier:
         self.username = config.email_username
         self.password = config.email_password
 
+        # Gmail/SMTP servers typically require a real email address in the
+        # RFC5322 "From" header (a display name alone is invalid).
+        self.from_address = config.get("notification.email.from_address", self.username)
+
         # Load Jinja2 template
         template_dir = Path(__file__).parent.parent / "templates"
         env = Environment(loader=FileSystemLoader(str(template_dir)))
         self.template = env.get_template("email_report.html")
 
-        logger.info(f"Initialized email notifier (recipient: {self.recipient})")
+        logger.info(
+            "Initialized email notifier (recipient: %s, from: %s)",
+            self.recipient,
+            formataddr((self.from_name, self.from_address)),
+        )
 
     def send_report(self, report_data: Dict[str, Any]) -> bool:
         """Send email report.
@@ -54,7 +63,7 @@ class EmailNotifier:
             # Create email message
             msg = MIMEMultipart("alternative")
             msg["Subject"] = f"Canvas Scraper Report - {report_data['timestamp']}"
-            msg["From"] = self.from_name
+            msg["From"] = formataddr((self.from_name, self.from_address))
             msg["To"] = self.recipient
 
             # Attach HTML content
@@ -117,6 +126,10 @@ class EmailNotifier:
             "failed_files": {},
             "new_courses": [],
             "next_run_time": "Next scheduled run",
+            "announcement_count": 0,
+            "assignment_count": 0,
+            "new_announcements": {},
+            "upcoming_assignments": {},
         }
 
         return self.send_report(test_report)
