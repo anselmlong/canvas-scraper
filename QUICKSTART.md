@@ -101,16 +101,39 @@ This shows you exactly what files would be downloaded and which would be skipped
 
 ## Schedule Automated Runs
 
-Run daily at noon automatically:
+Set up automatic syncing when you log in (recommended) or daily at noon.
 
-### Linux/Mac
+### All Platforms (Auto-Detect)
+
 ```bash
-bash setup_scheduler.sh
+./setup_scheduler.sh
 ```
 
-### Windows
+This auto-detects your platform:
+- **Windows/WSL**: Creates a Windows Task Scheduler task
+- **macOS**: Creates a launchd agent
+- **Linux**: Adds a cron @reboot job
+
+### Options
+
+```bash
+# Run on login (default)
+./setup_scheduler.sh
+
+# Run daily at noon instead
+./setup_scheduler.sh --trigger daily
+
+# Run immediately
+./setup_scheduler.sh --run-now
+
+# Remove scheduled task
+./setup_scheduler.sh --uninstall
+```
+
+### Windows / WSL (PowerShell)
+
 ```powershell
-powershell setup_scheduler.ps1
+powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1
 ```
 
 ## Common Commands
@@ -226,7 +249,7 @@ Check the full README.md for:
 1. **Run your first sync**: `python src/main.py`
 2. **Check your email** for the report
 3. **Review skipped files** and download manually if needed
-4. **Set up scheduling** to run automatically: `bash setup_scheduler.sh`
+4. **Set up scheduling** to run automatically: `./setup_scheduler.sh`
 5. **Customize filters** in `config.yaml` if needed
 
-That's it! Your Canvas files will now sync automatically every day at noon.
+That's it! Your Canvas files will now sync automatically every time you log in.

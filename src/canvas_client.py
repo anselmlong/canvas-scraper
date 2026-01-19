@@ -281,3 +281,116 @@ class CanvasClient:
                 return f"{size_bytes:.1f} {unit}"
             size_bytes /= 1024.0
         return f"{size_bytes:.1f} TB"
+
+    def get_course_announcements(self, course_id: int) -> List[Dict[str, Any]]:
+        """Get all announcements for a course.
+
+        Announcements in Canvas are special discussion topics.
+
+        Args:
+            course_id: Canvas course ID
+
+        Returns:
+            List of announcement dictionaries with keys: id, title, message,
+            author, posted_at, canvas_url
+        """
+        logger.info(f"Fetching announcements for course {course_id}...")
+        announcements = []
+
+        try:
+            course = self.canvas.get_course(course_id)
+
+            # Announcements are discussion topics with only_announcements=True
+            for announcement in course.get_discussion_topics(only_announcements=True):
+                # Extract author name
+                author = "Unknown"
+                if hasattr(announcement, "author") and announcement.author:
+                    author = announcement.author.get("display_name", "Unknown")
+                elif hasattr(announcement, "user_name"):
+                    author = announcement.user_name
+
+                # Parse posted date
+                posted_at = None
+                if hasattr(announcement, "posted_at") and announcement.posted_at:
+                    posted_at = self._parse_datetime(announcement.posted_at)
+
+                ann_dict = {
+                    "id": announcement.id,
+                    "title": announcement.title,
+                    "message": announcement.message or "",
+                    "author": author,
+                    "posted_at": posted_at,
+                    "canvas_url": f"{self.base_url}/courses/{course_id}/discussion_topics/{announcement.id}",
+                }
+                announcements.append(ann_dict)
+                logger.debug(f"Found announcement: {ann_dict['title']}")
+
+            logger.info(f"Found {len(announcements)} announcements")
+            return announcements
+
+        except CanvasException as e:
+            logger.error(f"Error fetching announcements for course {course_id}: {e}")
+            return []
+
+    def get_course_assignments(self, course_id: int) -> List[Dict[str, Any]]:
+        """Get all assignments for a course.
+
+        Args:
+            course_id: Canvas course ID
+
+        Returns:
+            List of assignment dictionaries with keys: id, name, description,
+            due_at, points_possible, submission_types, canvas_url, attachments
+        """
+        logger.info(f"Fetching assignments for course {course_id}...")
+        assignments = []
+
+        try:
+            course = self.canvas.get_course(course_id)
+
+            for assignment in course.get_assignments():
+                # Parse due date
+                due_at = None
+                if hasattr(assignment, "due_at") and assignment.due_at:
+                    due_at = self._parse_datetime(assignment.due_at)
+
+                # Get submission types
+                submission_types = []
+                if hasattr(assignment, "submission_types"):
+                    submission_types = assignment.submission_types or []
+
+                # Get attachments (files attached to assignment description)
+                attachments = []
+                if hasattr(assignment, "attachments") and assignment.attachments:
+                    for att in assignment.attachments:
+                        att_dict = {
+                            "id": att.get("id"),
+                            "name": att.get("display_name") or att.get("filename"),
+                            "filename": att.get("filename"),
+                            "size": att.get("size", 0),
+                            "url": att.get("url"),
+                            "mime_type": att.get("mime_class", "unknown"),
+                        }
+                        attachments.append(att_dict)
+
+                assign_dict = {
+                    "id": assignment.id,
+                    "name": assignment.name,
+                    "description": assignment.description or "",
+                    "due_at": due_at,
+                    "points_possible": getattr(assignment, "points_possible", None),
+                    "submission_types": submission_types,
+                    "canvas_url": assignment.html_url
+                    if hasattr(assignment, "html_url")
+                    else f"{self.base_url}/courses/{course_id}/assignments/{assignment.id}",
+                    "attachments": attachments,
+                }
+                assignments.append(assign_dict)
+                logger.debug(f"Found assignment: {assign_dict['name']}")
+
+            logger.info(f"Found {len(assignments)} assignments")
+            return assignments
+
+        except CanvasException as e:
+            logger.error(f"Error fetching assignments for course {course_id}: {e}")
+            return []

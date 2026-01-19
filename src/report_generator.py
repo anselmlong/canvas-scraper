@@ -27,6 +27,8 @@ class ReportGenerator:
         skipped_files: List[Dict[str, Any]],
         failed_downloads: List[Any],
         new_courses: List[Dict[str, Any]],
+        new_announcements: List[Dict[str, Any]] = None,
+        upcoming_assignments: List[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """Generate comprehensive download report.
 
@@ -36,15 +38,24 @@ class ReportGenerator:
             skipped_files: List of skipped file records from DB
             failed_downloads: List of DownloadResult for failed downloads
             new_courses: List of newly detected courses
+            new_announcements: List of new announcement records from DB
+            upcoming_assignments: List of upcoming assignment records from DB
 
         Returns:
             Report data dict for email template
         """
+        new_announcements = new_announcements or []
+        upcoming_assignments = upcoming_assignments or []
+
         # Group files by course
         new_files_by_course = self._group_by_course(new_downloads)
         updated_files_by_course = self._group_by_course(updated_downloads)
         skipped_files_by_course = self._group_skipped_by_course(skipped_files)
         failed_files_by_course = self._group_failed_by_course(failed_downloads)
+
+        # Group announcements and assignments by course
+        announcements_by_course = self._group_announcements_by_course(new_announcements)
+        assignments_by_course = self._group_assignments_by_course(upcoming_assignments)
 
         # Calculate totals
         total_size_bytes = sum(
@@ -64,6 +75,11 @@ class ReportGenerator:
             "failed_files": failed_files_by_course,
             "new_courses": new_courses,
             "next_run_time": self._get_next_run_time(),
+            # New announcement and assignment data
+            "new_announcements": announcements_by_course,
+            "upcoming_assignments": assignments_by_course,
+            "announcement_count": len(new_announcements),
+            "assignment_count": len(upcoming_assignments),
         }
 
         logger.info(
@@ -158,3 +174,79 @@ class ReportGenerator:
             next_run += timedelta(days=1)
 
         return next_run.strftime("%B %d, %Y at %I:%M %p")
+
+    def _group_announcements_by_course(
+        self, announcements: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Group announcements by course.
+
+        Args:
+            announcements: List of announcement records from DB
+
+        Returns:
+            Dict mapping course name to list of announcement info dicts
+        """
+        grouped = defaultdict(list)
+
+        for ann in announcements:
+            # Format posted date
+            posted_at = ann.get("posted_at")
+            if posted_at:
+                try:
+                    dt = datetime.fromisoformat(posted_at)
+                    posted_at_str = dt.strftime("%B %d, %Y at %I:%M %p")
+                except:
+                    posted_at_str = posted_at
+            else:
+                posted_at_str = "Unknown date"
+
+            ann_info = {
+                "title": ann["title"],
+                "message": ann.get("message", ""),
+                "author": ann.get("author", "Unknown"),
+                "posted_at": posted_at_str,
+                "canvas_url": ann["canvas_url"],
+            }
+            grouped[ann["course_name"]].append(ann_info)
+
+        return dict(grouped)
+
+    def _group_assignments_by_course(
+        self, assignments: List[Dict[str, Any]]
+    ) -> Dict[str, List[Dict[str, str]]]:
+        """Group assignments by course.
+
+        Args:
+            assignments: List of assignment records from DB
+
+        Returns:
+            Dict mapping course name to list of assignment info dicts
+        """
+        grouped = defaultdict(list)
+
+        for assign in assignments:
+            # Format due date
+            due_at = assign.get("due_at")
+            if due_at:
+                try:
+                    dt = datetime.fromisoformat(due_at)
+                    due_at_str = dt.strftime("%B %d, %Y at %I:%M %p")
+                except:
+                    due_at_str = due_at
+            else:
+                due_at_str = "No due date"
+
+            # Format points
+            points = assign.get("points_possible")
+            points_str = f"{points:.0f}" if points else None
+
+            assign_info = {
+                "name": assign["name"],
+                "description": assign.get("description", ""),
+                "due_at": due_at_str,
+                "points": points_str,
+                "canvas_url": assign["canvas_url"],
+            }
+            grouped[assign["course_name"]].append(assign_info)
+
+        return dict(grouped)

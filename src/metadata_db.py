@@ -93,6 +93,41 @@ class MetadataDB:
                 )
             """)
 
+            # Announcements table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS announcements (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL,
+                    course_name TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    message TEXT,
+                    author TEXT,
+                    posted_at TEXT,
+                    canvas_url TEXT NOT NULL,
+                    first_seen_date TEXT NOT NULL,
+                    last_seen_date TEXT NOT NULL,
+                    notified INTEGER DEFAULT 0
+                )
+            """)
+
+            # Assignments table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS assignments (
+                    id TEXT PRIMARY KEY,
+                    course_id TEXT NOT NULL,
+                    course_name TEXT NOT NULL,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    due_at TEXT,
+                    points_possible REAL,
+                    submission_types TEXT,
+                    canvas_url TEXT NOT NULL,
+                    first_seen_date TEXT NOT NULL,
+                    last_seen_date TEXT NOT NULL,
+                    notified INTEGER DEFAULT 0
+                )
+            """)
+
             conn.commit()
             logger.debug("Database schema initialized")
 
@@ -397,3 +432,243 @@ class MetadataDB:
                 "SELECT * FROM run_history ORDER BY id DESC LIMIT ?", (limit,)
             )
             return [dict(row) for row in cursor.fetchall()]
+
+    # Announcement methods
+
+    def get_announcement(self, announcement_id: str) -> Optional[Dict[str, Any]]:
+        """Get announcement record by ID.
+
+        Args:
+            announcement_id: Canvas announcement ID
+
+        Returns:
+            Announcement record dict or None if not found
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT * FROM announcements WHERE id = ?", (announcement_id,)
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def add_announcement(
+        self,
+        announcement_id: str,
+        course_id: str,
+        course_name: str,
+        title: str,
+        message: str,
+        author: str,
+        posted_at: Optional[datetime],
+        canvas_url: str,
+    ):
+        """Add an announcement record.
+
+        Args:
+            announcement_id: Canvas announcement ID
+            course_id: Canvas course ID
+            course_name: Course name
+            title: Announcement title
+            message: Announcement message (HTML)
+            author: Author name
+            posted_at: Date posted
+            canvas_url: Direct URL to announcement
+        """
+        now = datetime.now().isoformat()
+        posted_at_str = posted_at.isoformat() if posted_at else None
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO announcements
+                (id, course_id, course_name, title, message, author, posted_at,
+                 canvas_url, first_seen_date, last_seen_date, notified)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            """,
+                (
+                    announcement_id,
+                    course_id,
+                    course_name,
+                    title,
+                    message,
+                    author,
+                    posted_at_str,
+                    canvas_url,
+                    now,
+                    now,
+                ),
+            )
+
+        logger.debug(f"Added announcement record: {title}")
+
+    def update_announcement_seen(self, announcement_id: str):
+        """Update last_seen_date for an announcement.
+
+        Args:
+            announcement_id: Canvas announcement ID
+        """
+        now = datetime.now().isoformat()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE announcements SET last_seen_date = ? WHERE id = ?",
+                (now, announcement_id),
+            )
+
+    def get_new_announcements(self) -> List[Dict[str, Any]]:
+        """Get announcements that haven't been notified about.
+
+        Returns:
+            List of announcement records ordered by course and date
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT * FROM announcements
+                   WHERE notified = 0
+                   ORDER BY course_name, posted_at DESC"""
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def mark_announcements_notified(self):
+        """Mark all new announcements as notified."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE announcements SET notified = 1 WHERE notified = 0")
+
+        logger.debug("Marked announcements as notified")
+
+    # Assignment methods
+
+    def get_assignment(self, assignment_id: str) -> Optional[Dict[str, Any]]:
+        """Get assignment record by ID.
+
+        Args:
+            assignment_id: Canvas assignment ID
+
+        Returns:
+            Assignment record dict or None if not found
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT * FROM assignments WHERE id = ?", (assignment_id,))
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def add_assignment(
+        self,
+        assignment_id: str,
+        course_id: str,
+        course_name: str,
+        name: str,
+        description: str,
+        due_at: Optional[datetime],
+        points_possible: Optional[float],
+        submission_types: List[str],
+        canvas_url: str,
+    ):
+        """Add an assignment record.
+
+        Args:
+            assignment_id: Canvas assignment ID
+            course_id: Canvas course ID
+            course_name: Course name
+            name: Assignment name
+            description: Assignment description (HTML)
+            due_at: Due date
+            points_possible: Points possible
+            submission_types: List of submission types
+            canvas_url: Direct URL to assignment
+        """
+        import json
+
+        now = datetime.now().isoformat()
+        due_at_str = due_at.isoformat() if due_at else None
+        submission_types_str = json.dumps(submission_types)
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT OR REPLACE INTO assignments
+                (id, course_id, course_name, name, description, due_at,
+                 points_possible, submission_types, canvas_url,
+                 first_seen_date, last_seen_date, notified)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+            """,
+                (
+                    assignment_id,
+                    course_id,
+                    course_name,
+                    name,
+                    description,
+                    due_at_str,
+                    points_possible,
+                    submission_types_str,
+                    canvas_url,
+                    now,
+                    now,
+                ),
+            )
+
+        logger.debug(f"Added assignment record: {name}")
+
+    def update_assignment_seen(self, assignment_id: str):
+        """Update last_seen_date for an assignment.
+
+        Args:
+            assignment_id: Canvas assignment ID
+        """
+        now = datetime.now().isoformat()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                "UPDATE assignments SET last_seen_date = ? WHERE id = ?",
+                (now, assignment_id),
+            )
+
+    def get_new_assignments(self) -> List[Dict[str, Any]]:
+        """Get assignments that haven't been notified about.
+
+        Returns:
+            List of assignment records ordered by course and due date
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT * FROM assignments
+                   WHERE notified = 0
+                   ORDER BY course_name, due_at ASC"""
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_upcoming_assignments(self) -> List[Dict[str, Any]]:
+        """Get assignments with future due dates that haven't been notified.
+
+        Returns:
+            List of upcoming assignment records
+        """
+        now = datetime.now().isoformat()
+
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """SELECT * FROM assignments
+                   WHERE notified = 0
+                   AND (due_at IS NULL OR due_at >= ?)
+                   ORDER BY course_name, due_at ASC""",
+                (now,),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def mark_assignments_notified(self):
+        """Mark all new assignments as notified."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE assignments SET notified = 1 WHERE notified = 0")
+
+        logger.debug("Marked assignments as notified")

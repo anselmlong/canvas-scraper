@@ -609,8 +609,107 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         elif download_tasks:
             logger.info(f"[DRY RUN] Would download {len(download_tasks)} files")
 
+        # Fetch announcements for this course
+        course_name_full = f"{course['code']} - {course['name']}"
+        announcements = canvas_client.get_course_announcements(course["id"])
+        for ann in announcements:
+            ann_id = str(ann["id"])
+            existing = metadata_db.get_announcement(ann_id)
+            if not existing:
+                metadata_db.add_announcement(
+                    announcement_id=ann_id,
+                    course_id=str(course["id"]),
+                    course_name=course_name_full,
+                    title=ann["title"],
+                    message=ann["message"],
+                    author=ann["author"],
+                    posted_at=ann["posted_at"],
+                    canvas_url=ann["canvas_url"],
+                )
+            else:
+                metadata_db.update_announcement_seen(ann_id)
+
+        # Fetch assignments for this course
+        assignments = canvas_client.get_course_assignments(course["id"])
+        now = datetime.now(timezone.utc)
+        for assign in assignments:
+            assign_id = str(assign["id"])
+
+            # Only track upcoming assignments (future due date or no due date)
+            due_at = assign["due_at"]
+            if due_at is not None and due_at < now:
+                continue  # Skip past assignments
+
+            existing = metadata_db.get_assignment(assign_id)
+            if not existing:
+                metadata_db.add_assignment(
+                    assignment_id=assign_id,
+                    course_id=str(course["id"]),
+                    course_name=course_name_full,
+                    name=assign["name"],
+                    description=assign["description"],
+                    due_at=due_at,
+                    points_possible=assign["points_possible"],
+                    submission_types=assign["submission_types"],
+                    canvas_url=assign["canvas_url"],
+                )
+
+                # Download assignment attachments
+                for attachment in assign.get("attachments", []):
+                    if not attachment.get("url"):
+                        continue
+
+                    att_id = str(attachment["id"])
+                    # Check if we already have this file
+                    if metadata_db.get_downloaded_file(att_id):
+                        continue
+
+                    # Apply filters to attachment
+                    att_metadata = {
+                        "id": attachment["id"],
+                        "name": attachment["name"],
+                        "size": attachment["size"],
+                    }
+                    should_download, reason = filter_engine.should_download(att_metadata)
+
+                    if should_download:
+                        destination = file_organizer.get_file_path(
+                            course_dir, "Assignments", attachment["name"]
+                        )
+                        task = DownloadTask(
+                            file_id=att_id,
+                            file_url=attachment["url"],
+                            destination=destination,
+                            filename=attachment["name"],
+                            size_bytes=attachment["size"],
+                            course_name=course_name_full,
+                            is_update=False,
+                        )
+                        # Add to download queue - process after files
+                        if not dry_run:
+                            results = download_manager.download_files([task])
+                            successful, failed = results
+                            for result in successful:
+                                metadata_db.add_downloaded_file(
+                                    file_id=task.file_id,
+                                    course_id=str(course["id"]),
+                                    course_name=task.course_name,
+                                    filename=task.filename,
+                                    local_path=str(task.destination),
+                                    size_bytes=task.size_bytes,
+                                    canvas_modified_date=datetime.now(),
+                                )
+                                new_downloads.append(result)
+                            failed_downloads.extend(failed)
+            else:
+                metadata_db.update_assignment_seen(assign_id)
+
     # Get new skipped files for report
     new_skipped_files = metadata_db.get_new_skipped_files()
+
+    # Get new announcements and upcoming assignments for report
+    new_announcements = metadata_db.get_new_announcements()
+    upcoming_assignments = metadata_db.get_upcoming_assignments()
 
     # Generate report
     report_data = report_generator.generate_report(
@@ -619,6 +718,8 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         skipped_files=new_skipped_files,
         failed_downloads=failed_downloads,
         new_courses=new_courses,
+        new_announcements=new_announcements,
+        upcoming_assignments=upcoming_assignments,
     )
 
     # Log summary
@@ -630,14 +731,18 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
     logger.info(f"Files updated: {len(updated_downloads)}")
     logger.info(f"New files skipped: {len(new_skipped_files)}")
     logger.info(f"Failed downloads: {len(failed_downloads)}")
+    logger.info(f"New announcements: {len(new_announcements)}")
+    logger.info(f"Upcoming assignments: {len(upcoming_assignments)}")
 
     # Send email notification
     if send_email and config.get("notification.email.enabled") and not dry_run:
         logger.info("\nSending email notification...")
         email_notifier = EmailNotifier(config)
         if email_notifier.send_report(report_data):
-            # Mark skipped files as notified
+            # Mark skipped files, announcements, and assignments as notified
             metadata_db.mark_skipped_files_notified()
+            metadata_db.mark_announcements_notified()
+            metadata_db.mark_assignments_notified()
         else:
             logger.error("Failed to send email notification")
 

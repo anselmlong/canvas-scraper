@@ -157,30 +157,75 @@ python src/main.py --verbose
 
 ## Scheduling Automated Runs
 
-The scraper can run automatically at noon every day.
+The scraper can run automatically when you log in (recommended) or daily at noon.
 
-### Linux/Mac (cron)
+### Quick Setup (All Platforms)
 
 ```bash
-bash setup_scheduler.sh
+./setup_scheduler.sh
 ```
 
-This will add a cron job that runs daily at 12:00 PM.
+The script auto-detects your platform and uses the appropriate method:
 
-**Manual cron setup**:
+| Platform | Method | Trigger |
+|----------|--------|---------|
+| **Windows** | Task Scheduler | At login |
+| **WSL** | Task Scheduler (via Windows) | At login |
+| **macOS** | launchd | At login |
+| **Linux** | cron @reboot | At startup |
+
+### Options
+
+```bash
+# Run on login (default, recommended)
+./setup_scheduler.sh
+
+# Run daily at noon instead
+./setup_scheduler.sh --trigger daily
+
+# Run immediately
+./setup_scheduler.sh --run-now
+
+# Remove scheduled task
+./setup_scheduler.sh --uninstall
+
+# Show help
+./setup_scheduler.sh --help
+```
+
+### Windows / WSL
+
+For Windows or WSL, you can also use PowerShell directly:
+
+```powershell
+# Run on login (default)
+powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1
+
+# Run daily at noon
+powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -Trigger daily
+
+# Run at system startup (before login)
+powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -Trigger startup
+
+# Run now
+powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -RunNow
+
+# Uninstall
+powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -Uninstall
+```
+
+### Manual Setup
+
+**Linux (cron)**:
 ```bash
 crontab -e
-# Add this line:
+# Run at startup:
+@reboot sleep 60 && cd /path/to/canvas-scraper && ./venv/bin/python src/main.py >> logs/scraper.log 2>&1
+# Or run daily at noon:
 0 12 * * * cd /path/to/canvas-scraper && ./venv/bin/python src/main.py >> logs/scraper.log 2>&1
 ```
 
-### Windows (Task Scheduler)
-
-```powershell
-powershell setup_scheduler.ps1
-```
-
-This will create a scheduled task that runs daily at 12:00 PM.
+**macOS (launchd)**: The setup script creates a plist at `~/Library/LaunchAgents/com.canvas-scraper.sync.plist`
 
 ## Configuration
 

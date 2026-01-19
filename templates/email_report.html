@@ -88,6 +88,51 @@
             border-radius: 3px;
             font-family: 'Courier New', monospace;
         }
+        .announcement-card {
+            background: #e3f2fd;
+            border-left: 4px solid #1a73e8;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+        .announcement-title {
+            font-weight: 600;
+            color: #1a73e8;
+            margin-bottom: 4px;
+        }
+        .announcement-meta {
+            font-size: 0.85em;
+            color: #5f6368;
+            margin-bottom: 8px;
+        }
+        .announcement-content {
+            font-size: 0.95em;
+            color: #202124;
+            margin-bottom: 8px;
+            max-height: 100px;
+            overflow: hidden;
+        }
+        .assignment-card {
+            background: #fff3e0;
+            border-left: 4px solid #e65100;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 4px;
+        }
+        .assignment-name {
+            font-weight: 600;
+            color: #e65100;
+            margin-bottom: 4px;
+        }
+        .assignment-due {
+            font-size: 0.9em;
+            color: #bf360c;
+            font-weight: 500;
+        }
+        .assignment-points {
+            font-size: 0.85em;
+            color: #5f6368;
+        }
     </style>
 </head>
 <body>
@@ -101,7 +146,45 @@
         <div class="summary-item">❌ Failed downloads: <strong>{{ failed_count }}</strong></div>
         {% endif %}
         <div class="summary-item">💾 Total downloaded: <strong>{{ total_size_mb }} MB</strong></div>
+        {% if announcement_count > 0 %}
+        <div class="summary-item">📢 New announcements: <strong>{{ announcement_count }}</strong></div>
+        {% endif %}
+        {% if assignment_count > 0 %}
+        <div class="summary-item">📋 Upcoming assignments: <strong>{{ assignment_count }}</strong></div>
+        {% endif %}
     </div>
+
+    {% if new_announcements %}
+    <h3>📢 New Announcements</h3>
+    {% for course_name, announcements in new_announcements.items() %}
+    <div class="course">{{ course_name }}</div>
+    {% for ann in announcements %}
+    <div class="announcement-card">
+        <div class="announcement-title">{{ ann.title }}</div>
+        <div class="announcement-meta">Posted by {{ ann.author }} on {{ ann.posted_at }}</div>
+        <div class="announcement-content">{{ ann.message | striptags | truncate(300) }}</div>
+        <a href="{{ ann.canvas_url }}" class="canvas-link">🔗 Read full announcement on Canvas</a>
+    </div>
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
+
+    {% if upcoming_assignments %}
+    <h3>📋 Upcoming Assignments</h3>
+    {% for course_name, assignments in upcoming_assignments.items() %}
+    <div class="course">{{ course_name }}</div>
+    {% for assign in assignments %}
+    <div class="assignment-card">
+        <div class="assignment-name">{{ assign.name }}</div>
+        <div class="assignment-due">📅 Due: {{ assign.due_at }}</div>
+        {% if assign.points %}
+        <div class="assignment-points">📊 {{ assign.points }} points</div>
+        {% endif %}
+        <a href="{{ assign.canvas_url }}" class="canvas-link">🔗 View assignment on Canvas</a>
+    </div>
+    {% endfor %}
+    {% endfor %}
+    {% endif %}
 
     {% if new_files %}
     <h3>📁 New Files Downloaded</h3>
