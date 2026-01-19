@@ -70,14 +70,16 @@ If multiple courses match, you'll be asked to choose which one.
 
 Default: `~/CanvasFiles`
 
-You can change this to any location like:
+You can change this to any location with the file chooser:
 - `~/Documents/Canvas`
 - `/mnt/storage/Canvas`
 - `C:\Users\YourName\Canvas`
 
 ## First Run
 
-After setup completes, run your first sync:
+After setup completes, it should sync for you.
+
+You can also run your first sync:
 
 ```bash
 python src/main.py
@@ -101,7 +103,7 @@ This shows you exactly what files would be downloaded and which would be skipped
 
 ## Schedule Automated Runs
 
-Set up automatic syncing when you log in (recommended) or daily at noon.
+Set up automatic syncing when you log in (recommended) or daily at 5pm. Your computer has to be up and running at the time for it to work.
 
 ### All Platforms (Auto-Detect)
 
@@ -188,6 +190,8 @@ After each run, you'll get an email with:
 4. **Skipped Files** - Files that didn't pass filters with:
    - Why it was skipped
    - Direct link to download manually if you want it
+5. **New Announcements** 
+6. **New Assignments**
 
 Example skipped file:
 ```

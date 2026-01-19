@@ -290,7 +290,7 @@ def setup_wizard(config: Config):
 
     config.set("canvas.base_url", base_url)
 
-    api_token = input("\nEnter your Canvas API token: ").strip()
+    api_token = input("\nEnter your Canvas API token: (Go to Canvas -> Account -> Settings -> Approved Integrations -> New Access Token) ").strip()
     config.set_env("CANVAS_API_TOKEN", api_token)
 
     # Test connection

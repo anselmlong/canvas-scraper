@@ -1,6 +1,8 @@
 # Canvas File Scraper
 
-Automated file synchronization tool for Canvas LMS that intelligently downloads course files to your local machine while filtering out large or unwanted content.
+Lazy to click buttons? Me too.
+
+Introducing an automated file synchronization tool for Canvas LMS that intelligently downloads course files to your local machine while filtering out large or unwanted content. This tool also checks for new announcements/assignments daily, and emails you an update as long as your computer is running.
 
 ## Features
 
@@ -110,54 +112,11 @@ This will:
 - Download new files that pass filters
 - Send an email report with results
 
-### Dry Run
-
-Preview what would be downloaded without actually downloading:
-
-```bash
-python src/main.py --dry-run
-```
-
-### Manual Sync
-
-Run a sync without sending email:
-
-```bash
-python src/main.py --no-email
-```
-
-### Managing Courses
-
-**Add new courses**:
-```bash
-python src/main.py --add-courses
-```
-
-**Re-select all courses** (replaces current selection):
-```bash
-python src/main.py --reselect-courses
-```
-
-**List all active courses**:
-```bash
-python src/main.py --list-courses
-```
-
-### Testing
-
-**Test email configuration**:
-```bash
-python src/main.py --test-email
-```
-
-**Verbose logging**:
-```bash
-python src/main.py --verbose
 ```
 
 ## Scheduling Automated Runs
 
-The scraper can run automatically when you log in (recommended) or daily at noon.
+The scraper can run daily at 5pm, or a time of your choice.
 
 ### Quick Setup (All Platforms)
 
@@ -179,54 +138,7 @@ The script auto-detects your platform and uses the appropriate method:
 ```bash
 # Run on login (default, recommended)
 ./setup_scheduler.sh
-
-# Run daily at noon instead
-./setup_scheduler.sh --trigger daily
-
-# Run immediately
-./setup_scheduler.sh --run-now
-
-# Remove scheduled task
-./setup_scheduler.sh --uninstall
-
-# Show help
-./setup_scheduler.sh --help
 ```
-
-### Windows / WSL
-
-For Windows or WSL, you can also use PowerShell directly:
-
-```powershell
-# Run on login (default)
-powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1
-
-# Run daily at noon
-powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -Trigger daily
-
-# Run at system startup (before login)
-powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -Trigger startup
-
-# Run now
-powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -RunNow
-
-# Uninstall
-powershell -ExecutionPolicy Bypass -File setup_scheduler.ps1 -Uninstall
-```
-
-### Manual Setup
-
-**Linux (cron)**:
-```bash
-crontab -e
-# Run at startup:
-@reboot sleep 60 && cd /path/to/canvas-scraper && ./venv/bin/python src/main.py >> logs/scraper.log 2>&1
-# Or run daily at noon:
-0 12 * * * cd /path/to/canvas-scraper && ./venv/bin/python src/main.py >> logs/scraper.log 2>&1
-```
-
-**macOS (launchd)**: The setup script creates a plist at `~/Library/LaunchAgents/com.canvas-scraper.sync.plist`
-
 ## Configuration
 
 ### Filter Settings
@@ -282,14 +194,14 @@ Files are organized by course structure:
 
 ```
 ~/CanvasFiles/
-├── CS 101 - Intro to Computer Science (Fall 2024)/
+├── CS1101S - Intro to Computer Science (2026)/
 │   ├── Lectures/
 │   │   ├── Week_1_Introduction.pdf
 │   │   └── Week_2_Variables.pptx
 │   ├── Assignments/
 │   │   └── HW1.docx
 │   └── Resources/
-└── MATH 215 - Linear Algebra (Fall 2024)/
+└── MA1522 - Linear Algebra (2026)/
     ├── Problem_Sets/
     └── Syllabus.pdf
 ```
@@ -307,6 +219,8 @@ After each run, you'll receive an HTML email report containing:
   - Folder location on Canvas
   - Direct link to download manually
 - **New Courses**: Newly detected courses you can add
+- **New Announcements**: Never miss out!
+- **New Assignments**: Stay on top!
 
 ### Skipped File Example
 

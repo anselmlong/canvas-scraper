@@ -56,6 +56,9 @@ class ReportGenerator:
         # Group announcements and assignments by course
         announcements_by_course = self._group_announcements_by_course(new_announcements)
         assignments_by_course = self._group_assignments_by_course(upcoming_assignments)
+        
+        # Ignore this because we don't want to show new courses in the report
+        new_courses = []
 
         # Calculate totals
         total_size_bytes = sum(
