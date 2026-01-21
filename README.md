@@ -4,6 +4,8 @@ Lazy to click buttons? Me too.
 
 Introducing an automated file synchronization tool for Canvas LMS that intelligently downloads course files to your local machine while filtering out large or unwanted content. This tool also checks for new announcements/assignments daily, and emails you an update as long as your computer is running.
 
+Drop me a star if you use this!
+
 ## Features
 
 - **Smart Filtering**: Skip large files (>50 MB), videos, and textbooks automatically
