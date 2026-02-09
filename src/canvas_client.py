@@ -218,31 +218,40 @@ class CanvasClient:
             logger.warning(f"Error getting folder path for folder {folder_id}: {e}")
             return ""
 
-    def download_file(self, file_url: str, destination: str) -> bool:
+    def download_file(self, file_url: str, destination: str, shutdown_event=None) -> bool:
         """Download a file from Canvas.
 
         Args:
             file_url: Canvas file download URL
             destination: Local file path to save to
+            shutdown_event: Optional threading.Event to signal cancellation
 
         Returns:
             True if successful, False otherwise
         """
         try:
             import requests
+            from pathlib import Path
 
             # Canvas file URLs are authenticated with the API token
             response = requests.get(
                 file_url,
                 headers={"Authorization": f"Bearer {self.api_token}"},
                 stream=True,
-                timeout=300,  # 5 minute timeout for large files
+                timeout=(30, 60),  # 30s connect, 60s read timeout
             )
             response.raise_for_status()
 
-            # Write file in chunks
+            # Write file in chunks, checking for shutdown between chunks
+            dest_path = Path(destination)
             with open(destination, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
+                    if shutdown_event and shutdown_event.is_set():
+                        logger.info(f"Download cancelled (shutdown): {destination}")
+                        response.close()
+                        f.close()
+                        dest_path.unlink(missing_ok=True)
+                        return False
                     if chunk:
                         f.write(chunk)
 
@@ -250,6 +259,12 @@ class CanvasClient:
 
         except Exception as e:
             logger.error(f"Error downloading file from {file_url}: {e}")
+            # Clean up partial file on error
+            try:
+                from pathlib import Path
+                Path(destination).unlink(missing_ok=True)
+            except OSError:
+                pass
             return False
 
     def _parse_datetime(self, date_str: str) -> datetime:

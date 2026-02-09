@@ -17,6 +17,7 @@ Drop me a star if you use this!
 - **Organized Storage**: Files organized by course and folder structure, mirroring Canvas layout
 - **Scheduled Runs**: Set up automated daily runs (noon by default) using cron/Task Scheduler
 - **Retry Logic**: Automatically retries failed downloads (3 attempts with exponential backoff)
+- **Graceful Shutdown**: Handles SIGTERM/SIGINT signals cleanly, cancelling in-progress downloads and cleaning up partial files so `wsl --shutdown` doesn't hang
 - **Database Tracking**: SQLite database tracks all downloads and skipped files
 
 ## Requirements
@@ -140,7 +141,16 @@ The script auto-detects your platform and uses the appropriate method:
 ```bash
 # Run on login (default, recommended)
 ./setup_scheduler.sh
+
+# Run daily at 5pm
+./setup_scheduler.sh --trigger daily
+
+# Remove scheduled task
+./setup_scheduler.sh --uninstall
 ```
+
+On WSL, the scheduled task uses `run_with_timeout.sh` which wraps the scraper with a 15-minute timeout and signal handling, so `wsl --shutdown` won't hang.
+
 ## Configuration
 
 ### Filter Settings
@@ -282,6 +292,24 @@ tail -n 100 logs/scraper.log
 **"Permission denied" errors**
 - Ensure download path exists and is writable
 - Check file permissions on the download directory
+
+### WSL: `wsl --shutdown` Hangs
+
+The scheduled task runs the scraper inside WSL. If `wsl --shutdown` hangs, the scraper may still be running.
+
+The scraper handles this automatically via layered timeouts:
+1. **Signal handling** - WSL sends SIGTERM on shutdown; the scraper catches it and exits within seconds
+2. **`run_with_timeout.sh`** - Kills the process after 15 minutes as a safety net
+3. **Task Scheduler limit** - Terminates the task after 20 minutes as a final backstop
+
+If you still experience issues:
+```powershell
+# Force-kill and re-register the task
+taskkill /F /IM wsl.exe
+wsl --shutdown
+.\setup_scheduler.ps1 -Uninstall
+.\setup_scheduler.ps1
+```
 
 ### Cron Job Not Running
 

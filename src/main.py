@@ -1,6 +1,9 @@
 """Main entry point for Canvas File Scraper."""
 
 import sys
+import os
+import signal
+import threading
 import argparse
 import logging
 from pathlib import Path
@@ -16,6 +19,22 @@ from download_manager import DownloadManager, DownloadTask
 from course_manager import CourseManager
 from report_generator import ReportGenerator
 from email_notifier import EmailNotifier
+
+# Global shutdown event for graceful termination
+shutdown_event = threading.Event()
+
+
+def _shutdown_handler(signum, frame):
+    """Handle SIGTERM/SIGINT for graceful shutdown."""
+    sig_name = signal.Signals(signum).name
+    logger = logging.getLogger(__name__)
+    logger.info(f"Received {sig_name}, shutting down gracefully...")
+    shutdown_event.set()
+
+
+# Register signal handlers (SIGTERM for Task Scheduler / timeout kills)
+signal.signal(signal.SIGTERM, _shutdown_handler)
+signal.signal(signal.SIGINT, _shutdown_handler)
 
 
 def setup_logging(verbose: bool = False) -> logging.Logger:
@@ -463,7 +482,8 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
     file_organizer = FileOrganizer(config.download_path)
     filter_engine = FilterEngine(config.get("filters"))
     download_manager = DownloadManager(
-        canvas_client, max_workers=config.get("download.concurrent_downloads", 3)
+        canvas_client, max_workers=config.get("download.concurrent_downloads", 3),
+        shutdown_event=shutdown_event,
     )
     course_manager = CourseManager(canvas_client, config)
     report_generator = ReportGenerator(file_organizer)
@@ -488,6 +508,10 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
 
     # Process each course
     for course in synced_courses:
+        if shutdown_event.is_set():
+            logger.info("Shutdown requested, stopping sync early...")
+            break
+
         logger.info(f"\nProcessing course: {course['code']} - {course['name']}")
 
         # Get course directory
@@ -833,10 +857,15 @@ def main():
         run_sync(config, dry_run=args.dry_run, send_email=not args.no_email)
     except KeyboardInterrupt:
         logger.info("\nSync interrupted by user")
-        sys.exit(1)
+        shutdown_event.set()
+        sys.exit(0)
     except Exception as e:
         logger.error(f"Sync failed with error: {e}", exc_info=True)
         sys.exit(1)
+
+    if shutdown_event.is_set():
+        logger.info("Sync ended early due to shutdown signal")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

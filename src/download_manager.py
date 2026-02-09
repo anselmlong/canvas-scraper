@@ -2,8 +2,9 @@
 
 import time
 import logging
+import threading
 from pathlib import Path
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
 
@@ -43,6 +44,7 @@ class DownloadManager:
         max_workers: int = 3,
         max_retries: int = 3,
         retry_delay: float = 2.0,
+        shutdown_event: Optional[threading.Event] = None,
     ):
         """Initialize download manager.
 
@@ -51,11 +53,13 @@ class DownloadManager:
             max_workers: Maximum concurrent downloads
             max_retries: Maximum retry attempts per file
             retry_delay: Initial delay between retries (seconds)
+            shutdown_event: Optional event to signal graceful shutdown
         """
         self.canvas_client = canvas_client
         self.max_workers = max_workers
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.shutdown_event = shutdown_event
 
         logger.info(
             f"Initialized download manager "
@@ -89,6 +93,13 @@ class DownloadManager:
 
             # Process completed downloads
             for future in as_completed(future_to_task):
+                # Check for shutdown before processing more results
+                if self.shutdown_event and self.shutdown_event.is_set():
+                    logger.info("Shutdown requested, cancelling remaining downloads...")
+                    for f in future_to_task:
+                        f.cancel()
+                    break
+
                 result = future.result()
 
                 if result.success:
@@ -121,13 +132,21 @@ class DownloadManager:
         last_error = ""
 
         for attempt in range(1, self.max_retries + 1):
+            # Check for shutdown before each attempt
+            if self.shutdown_event and self.shutdown_event.is_set():
+                return DownloadResult(
+                    task=task, success=False,
+                    error_message="Cancelled due to shutdown", attempts=attempt,
+                )
+
             try:
                 # Ensure destination directory exists
                 task.destination.parent.mkdir(parents=True, exist_ok=True)
 
                 # Download file
                 success = self.canvas_client.download_file(
-                    task.file_url, str(task.destination)
+                    task.file_url, str(task.destination),
+                    shutdown_event=self.shutdown_event,
                 )
 
                 if success:
@@ -142,10 +161,19 @@ class DownloadManager:
                     f"for {task.filename}: {last_error}"
                 )
 
-            # Wait before retry (exponential backoff)
+            # Wait before retry (exponential backoff), but check shutdown during wait
             if attempt < self.max_retries:
                 delay = self.retry_delay * (2 ** (attempt - 1))
-                time.sleep(delay)
+                if self.shutdown_event:
+                    # Wait with shutdown check (returns True if event was set)
+                    if self.shutdown_event.wait(timeout=delay):
+                        return DownloadResult(
+                            task=task, success=False,
+                            error_message="Cancelled due to shutdown",
+                            attempts=attempt,
+                        )
+                else:
+                    time.sleep(delay)
 
         # All retries failed
         return DownloadResult(

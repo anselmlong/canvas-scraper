@@ -112,8 +112,8 @@ if ($IsWSLPath -or (-not (Test-Path "$ScriptDir\venv\Scripts\python.exe"))) {
     Write-Host "Project Path: $WslProjectPath" -ForegroundColor Gray
     Write-Host ""
 
-    # Build WSL command
-    $WslCommand = "cd '$WslProjectPath' && ./venv/bin/python src/main.py >> logs/scraper.log 2>&1"
+    # Build WSL command using timeout wrapper for graceful shutdown support
+    $WslCommand = "cd '$WslProjectPath' && bash run_with_timeout.sh"
 
     $action = New-ScheduledTaskAction -Execute "wsl.exe" `
         -Argument "-u $WslUsername -- bash -c `"$WslCommand`""
@@ -168,7 +168,7 @@ $settings = New-ScheduledTaskSettingsSet `
     -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries `
     -StartWhenAvailable `
-    -ExecutionTimeLimit (New-TimeSpan -Hours 1)
+    -ExecutionTimeLimit (New-TimeSpan -Minutes 20)
 
 $task = New-ScheduledTask -Action $action -Trigger $trigger `
     -Principal $principal -Settings $settings `
