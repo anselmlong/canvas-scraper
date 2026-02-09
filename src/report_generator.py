@@ -1,7 +1,7 @@
 """Report generator for creating download summaries."""
 
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -27,8 +27,8 @@ class ReportGenerator:
         skipped_files: List[Dict[str, Any]],
         failed_downloads: List[Any],
         new_courses: List[Dict[str, Any]],
-        new_announcements: List[Dict[str, Any]] = None,
-        upcoming_assignments: List[Dict[str, Any]] = None,
+        new_announcements: Optional[List[Dict[str, Any]]] = None,
+        upcoming_assignments: Optional[List[Dict[str, Any]]] = None,
     ) -> Dict[str, Any]:
         """Generate comprehensive download report.
 
@@ -44,8 +44,10 @@ class ReportGenerator:
         Returns:
             Report data dict for email template
         """
-        new_announcements = new_announcements or []
-        upcoming_assignments = upcoming_assignments or []
+        new_announcements = new_announcements if new_announcements is not None else []
+        upcoming_assignments = (
+            upcoming_assignments if upcoming_assignments is not None else []
+        )
 
         # Group files by course
         new_files_by_course = self._group_by_course(new_downloads)
@@ -56,7 +58,7 @@ class ReportGenerator:
         # Group announcements and assignments by course
         announcements_by_course = self._group_announcements_by_course(new_announcements)
         assignments_by_course = self._group_assignments_by_course(upcoming_assignments)
-        
+
         # Ignore this because we don't want to show new courses in the report
         new_courses = []
 

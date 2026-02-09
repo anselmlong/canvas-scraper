@@ -19,6 +19,8 @@ from download_manager import DownloadManager, DownloadTask
 from course_manager import CourseManager
 from report_generator import ReportGenerator
 from email_notifier import EmailNotifier
+from gui_setup import run_gui_setup
+
 
 # Global shutdown event for graceful termination
 shutdown_event = threading.Event()
@@ -46,7 +48,7 @@ def setup_logging(verbose: bool = False) -> logging.Logger:
     Returns:
         Configured logger
     """
-    log_dir = Path(__file__).parent.parent / "logs"
+    log_dir = Config.get_project_root() / "logs"
     log_dir.mkdir(exist_ok=True)
 
     level = logging.DEBUG if verbose else logging.INFO
@@ -309,7 +311,9 @@ def setup_wizard(config: Config):
 
     config.set("canvas.base_url", base_url)
 
-    api_token = input("\nEnter your Canvas API token: (Go to Canvas -> Account -> Settings -> Approved Integrations -> New Access Token) ").strip()
+    api_token = input(
+        "\nEnter your Canvas API token: (Go to Canvas -> Account -> Settings -> Approved Integrations -> New Access Token) "
+    ).strip()
     config.set_env("CANVAS_API_TOKEN", api_token)
 
     # Test connection
@@ -476,13 +480,16 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         return
 
     # Initialize components
-    canvas_client = CanvasClient(config.canvas_base_url, config.canvas_api_token)
-    db_path = Path(__file__).parent.parent / "data" / "scraper.db"
+    api_token = config.canvas_api_token or ""
+    canvas_client = CanvasClient(config.canvas_base_url, api_token)
+    db_path = config.project_root / "data" / "scraper.db"
+    db_path.parent.mkdir(exist_ok=True)
     metadata_db = MetadataDB(db_path)
     file_organizer = FileOrganizer(config.download_path)
     filter_engine = FilterEngine(config.get("filters"))
     download_manager = DownloadManager(
-        canvas_client, max_workers=config.get("download.concurrent_downloads", 3),
+        canvas_client,
+        max_workers=config.get("download.concurrent_downloads", 3),
         shutdown_event=shutdown_event,
     )
     course_manager = CourseManager(canvas_client, config)
@@ -694,7 +701,9 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                         "name": attachment["name"],
                         "size": attachment["size"],
                     }
-                    should_download, reason = filter_engine.should_download(att_metadata)
+                    should_download, reason = filter_engine.should_download(
+                        att_metadata
+                    )
 
                     if should_download:
                         destination = file_organizer.get_file_path(
@@ -790,6 +799,7 @@ def main():
     parser.add_argument(
         "--setup", action="store_true", help="Run first-time setup wizard"
     )
+    parser.add_argument("--cli", action="store_true", help="Force CLI mode for setup")
     parser.add_argument(
         "--reselect-courses", action="store_true", help="Re-run course selection"
     )
@@ -834,7 +844,16 @@ def main():
 
     # Handle setup wizard
     if args.setup:
-        setup_wizard(config)
+        try:
+            if not getattr(args, "cli", False) and (
+                os.environ.get("DISPLAY") or os.name == "nt"
+            ):
+                run_gui_setup(config)
+            else:
+                setup_wizard(config)
+        except Exception as e:
+            logger.debug(f"GUI setup failed or unavailable: {e}")
+            setup_wizard(config)
         return
 
     # Handle other commands
@@ -848,9 +867,20 @@ def main():
 
     # Check if configured
     if not config.is_configured():
-        print("Canvas Scraper is not configured yet.")
-        print("Run: python src/main.py --setup")
-        return
+        print("Canvas Scraper is not configured yet. Starting setup wizard...")
+        try:
+            if not getattr(args, "cli", False) and (
+                os.environ.get("DISPLAY") or os.name == "nt"
+            ):
+                run_gui_setup(config)
+            else:
+                setup_wizard(config)
+        except Exception as e:
+            logger.debug(f"GUI setup failed or unavailable: {e}")
+            setup_wizard(config)
+
+        if not config.is_configured():
+            return
 
     # Run sync
     try:

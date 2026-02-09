@@ -1,10 +1,17 @@
-# Canvas File Scraper
+# Canvas File Scraper (v1.1.0)
 
 Lazy to click buttons? Me too.
 
 Introducing an automated file synchronization tool for Canvas LMS that intelligently downloads course files to your local machine while filtering out large or unwanted content. This tool also checks for new announcements/assignments daily, and emails you an update as long as your computer is running.
 
 Drop me a star if you use this!
+
+> **Note for WSL users**: v1.1.0 fixes a critical bug where the scraper could cause WSL to hang during shutdown by ensuring graceful termination of all download threads.
+
+## New in v1.1.0
+- **WSL Stability Fix**: Improved signal handling to prevent `wsl --shutdown` from hanging.
+- **Standalone Packaging**: Instructions for creating a single executable for non-technical users.
+- **Improved Versioning**: Formal version tracking for better update management.
 
 ## Features
 
@@ -19,6 +26,41 @@ Drop me a star if you use this!
 - **Retry Logic**: Automatically retries failed downloads (3 attempts with exponential backoff)
 - **Graceful Shutdown**: Handles SIGTERM/SIGINT signals cleanly, cancelling in-progress downloads and cleaning up partial files so `wsl --shutdown` doesn't hang
 - **Database Tracking**: SQLite database tracks all downloads and skipped files
+
+## Standalone Executable (For Non-Technical Users)
+
+If you don't want to deal with Python, you can download a pre-built executable for your platform from the **[GitHub Releases](https://github.com/anselmlong/canvas-scraper/releases)** page.
+
+### 1. Download & Run
+- Download the version for your OS (e.g., `canvas-scraper-windows.exe`).
+- Copy it to a new folder where you want the app to live.
+- Double-click to run it!
+
+### 2. GUI Setup
+If it's your first time running the app, it will automatically launch a **GUI Setup Wizard** (no terminal typing required!) to help you:
+1. Connect to Canvas (API Token).
+2. Choose where to save your files.
+3. Select which courses to synchronize.
+
+### 3. Automated Sync
+Once set up, the app will run its first sync. You can then use the provided scripts to schedule it to run daily at your preferred time.
+
+---
+
+## Developer: Building the Executable
+
+If you've modified the code and want to build your own executable:
+
+1. **Install Build Tools**:
+   ```bash
+   pip install pyinstaller
+   ```
+
+2. **Build**:
+   ```bash
+   python build_exe.py
+   ```
+   The executable will be in the `dist/` folder.
 
 ## Requirements
 

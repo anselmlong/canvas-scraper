@@ -37,7 +37,7 @@ class EmailNotifier:
         self.from_address = config.get("notification.email.from_address", self.username)
 
         # Load Jinja2 template
-        template_dir = Path(__file__).parent.parent / "templates"
+        template_dir = self.config.internal_resource_dir / "templates"
         env = Environment(loader=FileSystemLoader(str(template_dir)))
         self.template = env.get_template("email_report.html")
 

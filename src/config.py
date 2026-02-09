@@ -1,6 +1,7 @@
 """Configuration management for Canvas Scraper."""
 
 import os
+import sys
 import yaml
 from pathlib import Path
 from typing import Dict, Any, Optional
@@ -10,13 +11,26 @@ from dotenv import load_dotenv
 class Config:
     """Configuration manager for Canvas Scraper."""
 
+    @staticmethod
+    def get_project_root() -> Path:
+        """Get the logical project root, works for dev and bundled apps."""
+        if getattr(sys, "frozen", False):
+            return Path(sys.executable).parent
+        return Path(__file__).parent.parent
+
     def __init__(self, config_path: Optional[Path] = None):
         """Initialize configuration.
 
         Args:
             config_path: Path to config.yaml file. Defaults to project root.
         """
-        self.project_root = Path(__file__).parent.parent
+        # Handle PyInstaller bundling
+        self.project_root = self.get_project_root()
+        if getattr(sys, "frozen", False):
+            self.internal_resource_dir = Path(sys._MEIPASS)
+        else:
+            self.internal_resource_dir = self.project_root
+
         self.config_path = config_path or self.project_root / "config.yaml"
         self.env_path = self.project_root / ".env"
 
