@@ -42,6 +42,8 @@ def build():
         "--console",
         "--name",
         "canvas-scraper",
+        "--paths",
+        "src",
         "--add-data",
         f"templates{sep}templates",
         "--add-data",
