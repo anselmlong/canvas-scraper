@@ -288,7 +288,7 @@ setup_wsl() {
     echo ""
 
     # Call PowerShell script
-    powershell.exe -ExecutionPolicy Bypass -File "$PROJECT_DIR/setup_scheduler.ps1" -Trigger "$TRIGGER"
+    powershell.exe -ExecutionPolicy Bypass -File "$PROJECT_DIR/setup_scheduler.ps1" -TriggerType "$TRIGGER"
 }
 
 # ============================================================================

@@ -4,7 +4,7 @@
 param(
     [switch]$Uninstall,
     [switch]$RunNow,
-    [string]$Trigger = "login"  # "login", "startup", or "daily"
+    [string]$TriggerType = "login"  # "login", "startup", or "daily"
 )
 
 $TaskName = "CanvasScraper"
@@ -142,17 +142,17 @@ if ($IsWSLPath -or (-not (Test-Path "$ScriptDir\venv\Scripts\python.exe"))) {
 }
 
 # Create trigger based on parameter
-switch ($Trigger.ToLower()) {
+switch ($TriggerType.ToLower()) {
     "login" {
-        $trigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
+        $taskTrigger = New-ScheduledTaskTrigger -AtLogOn -User $env:USERNAME
         $TriggerDesc = "at user login"
     }
     "startup" {
-        $trigger = New-ScheduledTaskTrigger -AtStartup
+        $taskTrigger = New-ScheduledTaskTrigger -AtStartup
         $TriggerDesc = "at system startup"
     }
     "daily" {
-        $trigger = New-ScheduledTaskTrigger -Daily -At 5:00PM
+        $taskTrigger = New-ScheduledTaskTrigger -Daily -At 5:00PM
         $TriggerDesc = "daily at 5:00 PM"
     }
     default {
@@ -170,10 +170,6 @@ $settings = New-ScheduledTaskSettingsSet `
     -StartWhenAvailable `
     -ExecutionTimeLimit (New-TimeSpan -Minutes 20)
 
-$task = New-ScheduledTask -Action $action -Trigger $trigger `
-    -Principal $principal -Settings $settings `
-    -Description "Canvas file scraper - syncs files from Canvas LMS"
-
 Write-Host "Task Configuration:" -ForegroundColor White
 Write-Host "  Name: $TaskName"
 Write-Host "  Trigger: $TriggerDesc"
@@ -190,8 +186,11 @@ if ($confirm -eq "y" -or $confirm -eq "Y") {
         Unregister-ScheduledTask -TaskName $TaskName -Confirm:$false
     }
 
-    # Register new task
-    Register-ScheduledTask -TaskName $TaskName -InputObject $task | Out-Null
+    # Register task directly (avoids CIM type issues when run from UNC/WSL paths)
+    Register-ScheduledTask -TaskName $TaskName `
+        -Action $action -Trigger $taskTrigger `
+        -Principal $principal -Settings $settings `
+        -Description "Canvas file scraper - syncs files from Canvas LMS" | Out-Null
 
     Write-Host ""
     Write-Host "Scheduled task registered successfully!" -ForegroundColor Green
