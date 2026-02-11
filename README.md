@@ -10,7 +10,7 @@ Drop me a star if you use this!
 
 ## New in v1.1.0
 - **WSL Stability Fix**: Improved signal handling to prevent `wsl --shutdown` from hanging.
-- **Standalone Packaging**: Instructions for creating a single executable for non-technical users.
+- **Standalone Packaging**: Instructions for creating a single executable for non-technical users (Buggy though - let me know if it breaks)
 - **Improved Versioning**: Formal version tracking for better update management.
 
 ## Features
