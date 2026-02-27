@@ -89,12 +89,6 @@ class CanvasClient:
         """
         if hasattr(course, "term") and hasattr(course.term, "name"):
             return course.term.name
-        elif hasattr(course, "enrollment_term_id"):
-            try:
-                term = self.canvas.get_enrollment_term(course.enrollment_term_id)
-                return term.name
-            except:
-                pass
 
         # Fallback to current year
         return f"Term {datetime.now().year}"
@@ -218,7 +212,9 @@ class CanvasClient:
             logger.warning(f"Error getting folder path for folder {folder_id}: {e}")
             return ""
 
-    def download_file(self, file_url: str, destination: str, shutdown_event=None) -> bool:
+    def download_file(
+        self, file_url: str, destination: str, shutdown_event=None
+    ) -> bool:
         """Download a file from Canvas.
 
         Args:
@@ -262,6 +258,7 @@ class CanvasClient:
             # Clean up partial file on error
             try:
                 from pathlib import Path
+
                 Path(destination).unlink(missing_ok=True)
             except OSError:
                 pass
@@ -279,7 +276,7 @@ class CanvasClient:
         try:
             # Canvas uses ISO 8601 format
             return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-        except:
+        except (ValueError, TypeError):
             return datetime.now()
 
     def _format_size(self, size_bytes: int) -> str:

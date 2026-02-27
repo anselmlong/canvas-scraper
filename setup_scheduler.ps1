@@ -25,6 +25,7 @@ if ($Uninstall) {
 if ($RunNow) {
     $existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($existingTask) {
+        Write-Host "About to run: wsl.exe --distribution $WslDistro -u $WslUsername --cd '$WslProjectPath' -- bash -c '$WslCommand'" -ForegroundColor Cyan
         Start-ScheduledTask -TaskName $TaskName
         Write-Host "Task started. Check logs for output." -ForegroundColor Green
     } else {
@@ -93,18 +94,19 @@ if ($IsWSLPath -or (-not (Test-Path "$ScriptDir\venv\Scripts\python.exe"))) {
         Write-Host "Error: Could not detect WSL username." -ForegroundColor Red
         exit 1
     }
+    # Get WSL distro name
+    $WslDistro = (wsl --list --quiet | Select-Object -First 1).Trim()
+    if (-not $WslDistro) {
+        Write-Host "Error: Could not detect WSL distro name." -ForegroundColor Red
+        exit 1
+    }
+    Write-Host "WSL Distro: $WslDistro" -ForegroundColor Gray
 
-    # Get project path in WSL format
-    $WslProjectPath = wsl pwd 2>$null
-    if (-not $WslProjectPath -or $LASTEXITCODE -ne 0) {
-        # Try to find the project path
-        $WslProjectPath = wsl wslpath -u "'$ScriptDir'" 2>$null
-        if (-not $WslProjectPath) {
-            Write-Host "Error: Could not determine WSL project path." -ForegroundColor Red
-            Write-Host "Please run this script from within the project directory in WSL:" -ForegroundColor Yellow
-            Write-Host "  cd /path/to/canvas-scraper && powershell.exe ./setup_scheduler.ps1" -ForegroundColor Yellow
-            exit 1
-        }
+    # Get project path in WSL format using existing helper function
+    $WslProjectPath = Get-WSLProjectPath $ScriptDir
+    if (-not $WslProjectPath) {
+        Write-Host "Error: Could not convert project path to WSL format." -ForegroundColor Red
+        exit 1
     }
     $WslProjectPath = $WslProjectPath.Trim()
 
@@ -113,12 +115,12 @@ if ($IsWSLPath -or (-not (Test-Path "$ScriptDir\venv\Scripts\python.exe"))) {
     Write-Host ""
 
     # Build WSL command using timeout wrapper for graceful shutdown support
-    $WslCommand = "cd '$WslProjectPath' && bash run_with_timeout.sh"
-
+    # Use --cd to set working directory and redirect all output to log file
+    $LogPath = "$WslProjectPath/logs/scraper.log"
+    $WslCommand = "exec >> '$LogPath' 2>&1; bash run_with_timeout.sh"
     $action = New-ScheduledTaskAction -Execute "wsl.exe" `
-        -Argument "-u $WslUsername -- bash -c `"$WslCommand`""
-
-    $ExecuteInfo = "wsl.exe -u $WslUsername -- bash -c `"$WslCommand`""
+        -Argument "--distribution $WslDistro -u $WslUsername --cd '$WslProjectPath' -- bash -c '$WslCommand'"
+    $ExecuteInfo = "wsl.exe --distribution $WslDistro -u $WslUsername --cd '$WslProjectPath' -- bash -c '$WslCommand'"
 
 } else {
     # Native Windows mode

@@ -200,7 +200,7 @@ class ReportGenerator:
                 try:
                     dt = datetime.fromisoformat(posted_at)
                     posted_at_str = dt.strftime("%B %d, %Y at %I:%M %p")
-                except:
+                except (ValueError, TypeError):
                     posted_at_str = posted_at
             else:
                 posted_at_str = "Unknown date"
@@ -236,7 +236,7 @@ class ReportGenerator:
                 try:
                     dt = datetime.fromisoformat(due_at)
                     due_at_str = dt.strftime("%B %d, %Y at %I:%M %p")
-                except:
+                except (ValueError, TypeError):
                     due_at_str = due_at
             else:
                 due_at_str = "No due date"

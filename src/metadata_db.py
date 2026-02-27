@@ -1,6 +1,7 @@
 """SQLite database for tracking downloaded and skipped files."""
 
 import sqlite3
+import json
 import logging
 from pathlib import Path
 from typing import Optional, Dict, Any, List
@@ -583,8 +584,6 @@ class MetadataDB:
             submission_types: List of submission types
             canvas_url: Direct URL to assignment
         """
-        import json
-
         now = datetime.now().isoformat()
         due_at_str = due_at.isoformat() if due_at else None
         submission_types_str = json.dumps(submission_types)

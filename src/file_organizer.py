@@ -2,6 +2,7 @@
 
 import os
 import re
+import shutil
 import logging
 from pathlib import Path
 from typing import Dict, Any
@@ -149,8 +150,6 @@ class FileOrganizer:
         course_dir = self.get_course_directory(course_code, course_name, term)
 
         if course_dir.exists():
-            import shutil
-
             shutil.rmtree(course_dir)
             logger.info(f"Deleted course directory: {course_dir}")
 

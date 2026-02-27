@@ -19,7 +19,6 @@ from download_manager import DownloadManager, DownloadTask
 from course_manager import CourseManager
 from report_generator import ReportGenerator
 from email_notifier import EmailNotifier
-from gui_setup import run_gui_setup
 
 
 # Global shutdown event for graceful termination
@@ -87,7 +86,7 @@ def _is_wsl() -> bool:
         with open("/proc/version", "r") as f:
             content = f.read().lower()
             return "microsoft" in content or "wsl" in content
-    except:
+    except (OSError, IOError):
         return False
 
 
@@ -108,7 +107,7 @@ def _wsl_to_windows_path(wsl_path: str) -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except:
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
         pass
 
     # Fallback manual conversion for /mnt/ paths
@@ -140,7 +139,7 @@ def _windows_to_wsl_path(windows_path: str) -> str:
         )
         if result.returncode == 0:
             return result.stdout.strip()
-    except:
+    except (subprocess.TimeoutExpired, OSError, FileNotFoundError):
         pass
 
     # Fallback manual conversion
@@ -170,7 +169,7 @@ def _open_native_folder_dialog() -> str:
 
     try:
         # WSL: Use Windows PowerShell dialog
-        if is_wsl or system == "Linux" and is_wsl:
+        if is_wsl:
             ps_script = """
             Add-Type -AssemblyName System.Windows.Forms
             $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -283,7 +282,7 @@ def _open_native_folder_dialog() -> str:
             except:
                 pass
 
-    except Exception as e:
+    except (subprocess.SubprocessError, OSError, RuntimeError) as e:
         logging.getLogger(__name__).debug(f"Error opening folder dialog: {e}")
 
     return ""
@@ -799,7 +798,6 @@ def main():
     parser.add_argument(
         "--setup", action="store_true", help="Run first-time setup wizard"
     )
-    parser.add_argument("--cli", action="store_true", help="Force CLI mode for setup")
     parser.add_argument(
         "--reselect-courses", action="store_true", help="Re-run course selection"
     )
@@ -844,17 +842,9 @@ def main():
 
     # Handle setup wizard
     if args.setup:
-        try:
-            if not getattr(args, "cli", False) and (
-                os.environ.get("DISPLAY") or os.name == "nt"
-            ):
-                run_gui_setup(config)
-            else:
-                setup_wizard(config)
-        except Exception as e:
-            logger.debug(f"GUI setup failed or unavailable: {e}")
-            setup_wizard(config)
+        setup_wizard(config)
         return
+
 
     # Handle other commands
     if args.test_email:
@@ -868,16 +858,8 @@ def main():
     # Check if configured
     if not config.is_configured():
         print("Canvas Scraper is not configured yet. Starting setup wizard...")
-        try:
-            if not getattr(args, "cli", False) and (
-                os.environ.get("DISPLAY") or os.name == "nt"
-            ):
-                run_gui_setup(config)
-            else:
-                setup_wizard(config)
-        except Exception as e:
-            logger.debug(f"GUI setup failed or unavailable: {e}")
-            setup_wizard(config)
+        setup_wizard(config)
+
 
         if not config.is_configured():
             return

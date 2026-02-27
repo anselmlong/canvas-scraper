@@ -178,6 +178,15 @@ class Config:
         with open(self.env_path, "w") as f:
             f.writelines(env_lines)
 
+        # Set restrictive permissions on .env file (Unix only)
+        try:
+            import os as os_module
+
+            os_module.chmod(self.env_path, 0o600)
+        except (OSError, AttributeError):
+            # Non-Unix system or permission error - ignore
+            pass
+
     @property
     def canvas_api_token(self) -> Optional[str]:
         """Get Canvas API token from environment."""

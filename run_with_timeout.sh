@@ -9,5 +9,20 @@ cd "$SCRIPT_DIR"
 # Ensure logs directory exists
 mkdir -p logs
 
+# Detect Python interpreter (support both venv and .venv)
+if [ -x "./venv/bin/python" ]; then
+    PYTHON="./venv/bin/python"
+elif [ -x "./.venv/bin/python" ]; then
+    PYTHON="./.venv/bin/python"
+elif command -v python3 &> /dev/null; then
+    PYTHON="python3"
+else
+    echo "Error: No Python interpreter found (checked ./venv/bin/python, ./.venv/bin/python, python3)" >> logs/scraper.log
+    exit 1
+fi
+
+# Log start of run with timestamp
+echo "=== Canvas Scraper started at $(date) ===" >> logs/scraper.log
+
 timeout --signal=TERM --kill-after=30 900 \
-    ./venv/bin/python src/main.py "$@" >> logs/scraper.log 2>&1
+    $PYTHON src/main.py "$@" >> logs/scraper.log 2>&1
