@@ -8,8 +8,6 @@ Drop me a star if you use this!
 
 ## Features
 
-## Features
-
 - **Smart Filtering**: Skip large files (>50 MB), videos, and textbooks automatically
 - **Course Selection**: Interactive course selection with fuzzy matching (type "cs" to match "CS 101")
 - **Auto-Detection**: Automatically detects new courses each run and prompts you to add them
@@ -22,20 +20,6 @@ Drop me a star if you use this!
 - **Graceful Shutdown**: Handles SIGTERM/SIGINT signals cleanly, cancelling in-progress downloads and cleaning up partial files so `wsl --shutdown` doesn't hang
 - **Database Tracking**: SQLite database tracks all downloads and skipped files
 
-## Requirements
-
-- Python 3.9 or higher
-- Canvas LMS account with API access
-- Gmail account with App Password (for email notifications)
-
-## Installation
-
-1. **Clone or download this repository**
-
-```bash
-cd ~/Projects
-git clone <repo-url> canvas-scraper
-```
 ## Requirements
 
 - Python 3.9 or higher
@@ -213,8 +197,10 @@ notification:
     enabled: true
     recipient: "your_email@example.com"
     smtp_server: "smtp.gmail.com"
-    smtp_port: 587
+    smtp_port: 587  # Use 465 if your network blocks STARTTLS
 ```
+
+> **Tip:** If you get connection errors with port 587 (the default), switch to port 465. Some corporate networks and ISPs block STARTTLS upgrades. Port 465 uses implicit TLS and is more reliable in those environments.
 
 ## File Organization
 
@@ -294,9 +280,14 @@ tail -n 100 logs/scraper.log
 - Verify 2-Step Verification is enabled on your Google account
 - Check credentials in `.env`
 
-**Error: "Connection refused"**
+**Error: "Connection refused" or STARTTLS errors**
 - Check your internet connection
-- Verify SMTP settings in `config.yaml`
+- Try switching to port 465 in `config.yaml` — some networks block port 587's STARTTLS handshake:
+  ```yaml
+  notification:
+    email:
+      smtp_port: 465
+  ```
 
 ### Download Issues
 

@@ -77,9 +77,7 @@ You can change this to any location with the file chooser:
 
 ## First Run
 
-After setup completes, it should sync for you.
-
-You can also run your first sync:
+After setup completes, run your first sync:
 
 ```bash
 python src/main.py

@@ -1,6 +1,8 @@
 """Canvas API client for interacting with Canvas LMS."""
 
 import logging
+import requests
+from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from canvasapi import Canvas
@@ -8,6 +10,7 @@ from canvasapi.course import Course
 from canvasapi.file import File
 from canvasapi.folder import Folder
 from canvasapi.exceptions import CanvasException
+from utils import format_size
 
 
 logger = logging.getLogger(__name__)
@@ -26,7 +29,15 @@ class CanvasClient:
         self.base_url = base_url.rstrip("/")
         self.api_token = api_token
         self.canvas = Canvas(self.base_url, api_token)
+        self._course_cache: dict = {}
+        self._folder_cache: dict = {}
         logger.info(f"Initialized Canvas client for {self.base_url}")
+
+    def _get_course(self, course_id: int):
+        """Get course object with caching to avoid redundant API calls."""
+        if course_id not in self._course_cache:
+            self._course_cache[course_id] = self.canvas.get_course(course_id)
+        return self._course_cache[course_id]
 
     def test_connection(self) -> tuple[bool, str]:
         """Test connection to Canvas API.
@@ -52,7 +63,6 @@ class CanvasClient:
         courses = []
 
         try:
-            # Get courses where user is a student
             for course in self.canvas.get_courses(
                 enrollment_state="active", enrollment_type="student"
             ):
@@ -121,7 +131,7 @@ class CanvasClient:
         folders = []
 
         try:
-            course = self.canvas.get_course(course_id)
+            course = self._get_course(course_id)
 
             for folder in course.get_folders():
                 folder_dict = {
@@ -156,7 +166,7 @@ class CanvasClient:
         files = []
 
         try:
-            course = self.canvas.get_course(course_id)
+            course = self._get_course(course_id)
 
             for file in course.get_files():
                 file_dict = {
@@ -174,7 +184,7 @@ class CanvasClient:
                 }
                 files.append(file_dict)
                 logger.debug(
-                    f"Found file: {file_dict['name']} ({self._format_size(file_dict['size'])})"
+                    f"Found file: {file_dict['name']} ({format_size(file_dict['size'])})"
                 )
 
             logger.info(f"Found {len(files)} files")
@@ -197,15 +207,19 @@ class CanvasClient:
         if folder_id is None:
             return ""
 
+        cache_key = (course_id, folder_id)
+        if cache_key in self._folder_cache:
+            return self._folder_cache[cache_key]
+
         try:
-            course = self.canvas.get_course(course_id)
+            course = self._get_course(course_id)
             folder = course.get_folder(folder_id)
 
-            # Remove "course files/" prefix if present
             path = folder.full_name
             if path.startswith("course files/"):
                 path = path[13:]  # len('course files/')
 
+            self._folder_cache[cache_key] = path
             return path
 
         except CanvasException as e:
@@ -226,10 +240,6 @@ class CanvasClient:
             True if successful, False otherwise
         """
         try:
-            import requests
-            from pathlib import Path
-
-            # Canvas file URLs are authenticated with the API token
             response = requests.get(
                 file_url,
                 headers={"Authorization": f"Bearer {self.api_token}"},
@@ -255,10 +265,7 @@ class CanvasClient:
 
         except Exception as e:
             logger.error(f"Error downloading file from {file_url}: {e}")
-            # Clean up partial file on error
             try:
-                from pathlib import Path
-
                 Path(destination).unlink(missing_ok=True)
             except OSError:
                 pass
@@ -279,21 +286,6 @@ class CanvasClient:
         except (ValueError, TypeError):
             return datetime.now()
 
-    def _format_size(self, size_bytes: int) -> str:
-        """Format file size in human-readable format.
-
-        Args:
-            size_bytes: Size in bytes
-
-        Returns:
-            Formatted string (e.g., "1.5 MB")
-        """
-        for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} TB"
-
     def get_course_announcements(self, course_id: int) -> List[Dict[str, Any]]:
         """Get all announcements for a course.
 
@@ -310,7 +302,7 @@ class CanvasClient:
         announcements = []
 
         try:
-            course = self.canvas.get_course(course_id)
+            course = self._get_course(course_id)
 
             # Announcements are discussion topics with only_announcements=True
             for announcement in course.get_discussion_topics(only_announcements=True):
@@ -358,7 +350,7 @@ class CanvasClient:
         assignments = []
 
         try:
-            course = self.canvas.get_course(course_id)
+            course = self._get_course(course_id)
 
             for assignment in course.get_assignments():
                 # Parse due date

@@ -25,7 +25,7 @@ if ($Uninstall) {
 if ($RunNow) {
     $existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     if ($existingTask) {
-        Write-Host "About to run: wsl.exe --distribution $WslDistro -u $WslUsername --cd '$WslProjectPath' -- bash -c '$WslCommand'" -ForegroundColor Cyan
+        Write-Host "Starting scheduled task..." -ForegroundColor Cyan
         Start-ScheduledTask -TaskName $TaskName
         Write-Host "Task started. Check logs for output." -ForegroundColor Green
     } else {
@@ -52,13 +52,25 @@ function Get-WSLUsername {
 function Get-WSLProjectPath {
     param([string]$WindowsPath)
 
-    # Convert Windows path to WSL path
+    # If input is already a Linux path (starts with /), return as is
+    if ($WindowsPath -match '^/') {
+        return $WindowsPath.Trim()
+    }
+
+    # Handle WSL UNC paths (\\wsl.localhost\ or \\wsl$\)
+    if ($WindowsPath -match '^\\\\wsl(?:\.localhost)?\\([^\\]+)\\(.*)$') {
+        $distro = $matches[1]
+        $path = $matches[2] -replace '\\', '/'
+        return "/$path"
+    }
+
+    # Convert Windows path to WSL path (works for drive letters and other UNC)
     $result = wsl wslpath -u "$WindowsPath" 2>$null
     if ($LASTEXITCODE -eq 0) {
         return $result.Trim()
     }
 
-    # Fallback: manual conversion
+    # Fallback: manual conversion for drive letters
     if ($WindowsPath -match '^([A-Za-z]):\\(.*)$') {
         $drive = $matches[1].ToLower()
         $path = $matches[2] -replace '\\', '/'

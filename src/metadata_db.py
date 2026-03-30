@@ -129,7 +129,6 @@ class MetadataDB:
                 )
             """)
 
-            conn.commit()
             logger.debug("Database schema initialized")
 
     # Downloaded files methods

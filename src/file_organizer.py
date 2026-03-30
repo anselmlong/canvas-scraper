@@ -6,6 +6,7 @@ import shutil
 import logging
 from pathlib import Path
 from typing import Dict, Any
+from utils import format_size as format_size
 
 
 logger = logging.getLogger(__name__)
@@ -154,16 +155,4 @@ class FileOrganizer:
             logger.info(f"Deleted course directory: {course_dir}")
 
     def format_size(self, size_bytes: int) -> str:
-        """Format file size in human-readable format.
-
-        Args:
-            size_bytes: Size in bytes
-
-        Returns:
-            Formatted string (e.g., "1.5 MB")
-        """
-        for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} TB"
+        return format_size(size_bytes)

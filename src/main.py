@@ -167,10 +167,7 @@ def _open_native_folder_dialog() -> str:
     system = platform.system()
     is_wsl = _is_wsl()
 
-    try:
-        # WSL: Use Windows PowerShell dialog
-        if is_wsl:
-            ps_script = """
+    ps_script = """
             Add-Type -AssemblyName System.Windows.Forms
             $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
             $dialog.Description = "Select Download Location"
@@ -180,7 +177,8 @@ def _open_native_folder_dialog() -> str:
             }
             """
 
-            # Call Windows PowerShell from WSL
+    try:
+        if is_wsl:
             result = subprocess.run(
                 ["powershell.exe", "-Command", ps_script],
                 capture_output=True,
@@ -190,22 +188,10 @@ def _open_native_folder_dialog() -> str:
 
             if result.returncode == 0 and result.stdout.strip():
                 windows_path = result.stdout.strip()
-                # Convert Windows path to WSL path
-                wsl_path = _windows_to_wsl_path(windows_path)
-                return wsl_path
+                return _windows_to_wsl_path(windows_path)
             return ""
 
-        # Native Windows
         elif system == "Windows":
-            ps_script = """
-            Add-Type -AssemblyName System.Windows.Forms
-            $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-            $dialog.Description = "Select Download Location"
-            $dialog.ShowNewFolderButton = $true
-            if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
-                Write-Output $dialog.SelectedPath
-            }
-            """
             result = subprocess.run(
                 ["powershell", "-Command", ps_script],
                 capture_output=True,
@@ -279,7 +265,7 @@ def _open_native_folder_dialog() -> str:
                 )
                 root.destroy()
                 return folder or ""
-            except:
+            except Exception:
                 pass
 
     except (subprocess.SubprocessError, OSError, RuntimeError) as e:
@@ -662,6 +648,7 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         # Fetch assignments for this course
         assignments = canvas_client.get_course_assignments(course["id"])
         now = datetime.now(timezone.utc)
+        attachment_tasks = []
         for assign in assignments:
             assign_id = str(assign["id"])
 
@@ -684,31 +671,27 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                     canvas_url=assign["canvas_url"],
                 )
 
-                # Download assignment attachments
+                # Collect attachment download tasks
                 for attachment in assign.get("attachments", []):
                     if not attachment.get("url"):
                         continue
 
                     att_id = str(attachment["id"])
-                    # Check if we already have this file
                     if metadata_db.get_downloaded_file(att_id):
                         continue
 
-                    # Apply filters to attachment
                     att_metadata = {
                         "id": attachment["id"],
                         "name": attachment["name"],
                         "size": attachment["size"],
                     }
-                    should_download, reason = filter_engine.should_download(
-                        att_metadata
-                    )
+                    should_download, reason = filter_engine.should_download(att_metadata)
 
                     if should_download:
                         destination = file_organizer.get_file_path(
                             course_dir, "Assignments", attachment["name"]
                         )
-                        task = DownloadTask(
+                        attachment_tasks.append(DownloadTask(
                             file_id=att_id,
                             file_url=attachment["url"],
                             destination=destination,
@@ -716,25 +699,29 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                             size_bytes=attachment["size"],
                             course_name=course_name_full,
                             is_update=False,
-                        )
-                        # Add to download queue - process after files
-                        if not dry_run:
-                            results = download_manager.download_files([task])
-                            successful, failed = results
-                            for result in successful:
-                                metadata_db.add_downloaded_file(
-                                    file_id=task.file_id,
-                                    course_id=str(course["id"]),
-                                    course_name=task.course_name,
-                                    filename=task.filename,
-                                    local_path=str(task.destination),
-                                    size_bytes=task.size_bytes,
-                                    canvas_modified_date=datetime.now(),
-                                )
-                                new_downloads.append(result)
-                            failed_downloads.extend(failed)
+                        ))
             else:
                 metadata_db.update_assignment_seen(assign_id)
+
+        # Download all attachment tasks in one parallel batch
+        if attachment_tasks and not dry_run:
+            logger.info(f"Downloading {len(attachment_tasks)} assignment attachments...")
+            successful, failed = download_manager.download_files(attachment_tasks)
+            for result in successful:
+                task = result.task
+                metadata_db.add_downloaded_file(
+                    file_id=task.file_id,
+                    course_id=str(course["id"]),
+                    course_name=task.course_name,
+                    filename=task.filename,
+                    local_path=str(task.destination),
+                    size_bytes=task.size_bytes,
+                    canvas_modified_date=datetime.now(),
+                )
+                new_downloads.append(result)
+            failed_downloads.extend(failed)
+        elif attachment_tasks:
+            logger.info(f"[DRY RUN] Would download {len(attachment_tasks)} attachment files")
 
     # Get new skipped files for report
     new_skipped_files = metadata_db.get_new_skipped_files()
@@ -845,8 +832,6 @@ def main():
         setup_wizard(config)
         return
 
-
-    # Handle other commands
     if args.test_email:
         email_notifier = EmailNotifier(config)
         if email_notifier.send_test_email():
@@ -859,7 +844,6 @@ def main():
     if not config.is_configured():
         print("Canvas Scraper is not configured yet. Starting setup wizard...")
         setup_wizard(config)
-
 
         if not config.is_configured():
             return

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Tuple, Optional
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass
+from utils import format_size
 
 
 logger = logging.getLogger(__name__)
@@ -106,7 +107,7 @@ class DownloadManager:
                     successful.append(result)
                     logger.info(
                         f"✓ Downloaded: {result.task.filename} "
-                        f"({self._format_size(result.task.size_bytes)})"
+                        f"({format_size(result.task.size_bytes)})"
                     )
                 else:
                     failed.append(result)
@@ -183,17 +184,3 @@ class DownloadManager:
             attempts=self.max_retries,
         )
 
-    def _format_size(self, size_bytes: int) -> str:
-        """Format file size in human-readable format.
-
-        Args:
-            size_bytes: Size in bytes
-
-        Returns:
-            Formatted string (e.g., "1.5 MB")
-        """
-        for unit in ["B", "KB", "MB", "GB"]:
-            if size_bytes < 1024.0:
-                return f"{size_bytes:.1f} {unit}"
-            size_bytes /= 1024.0
-        return f"{size_bytes:.1f} TB"
