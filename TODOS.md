@@ -4,7 +4,7 @@
 
 ### Implement --reselect-courses, --add-courses, --remove-courses
 **Priority:** P1
-The flags are defined in `src/main.py` argparse and documented in README/QUICKSTART, but never handled in `main()` — they silently fall through to a full sync. `--list-courses` was implemented in v1.3.0.0; these three still need wiring to `CourseManager.interactive_course_selection` / `add_courses_to_config`. Noticed on branch feat/cloud-sync-and-installer.
+The flags are defined in `src/main.py` argparse and advertised in the email digest template (`templates/email_report.html`), but never handled in `main()` — they silently fall through to a full sync. README/QUICKSTART no longer recommend them; the email template still does. `--list-courses` was implemented in v1.3.0.0; these three still need wiring to `CourseManager.interactive_course_selection` / `add_courses_to_config`. Noticed on branch feat/cloud-sync-and-installer.
 
 ## Cloud Sync
 

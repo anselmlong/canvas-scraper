@@ -1,4 +1,4 @@
-# Canvas File Scraper (v1.3.0)
+# Canvas File Scraper (v1.3.0.0)
 
 Lazy to click buttons? Me too.
 
@@ -23,7 +23,7 @@ This clones the repo, sets up Python, and walks you through the setup wizard. Pr
 - **Email Reports**: Detailed HTML email reports after each run showing what was downloaded and what was skipped
 - **Skipped File Review**: Email includes links to skipped files so you can manually download what you need
 - **Organized Storage**: Files organized by course and folder structure, mirroring Canvas layout
-- **Scheduled Runs**: Set up automated daily runs (noon by default) using cron/Task Scheduler
+- **Scheduled Runs**: Set up automated runs at login (default) or daily at 5pm using cron/Task Scheduler/launchd
 - **Cloud Mode**: Run the daily sync on GitHub Actions and deliver files to Google Drive/Dropbox/OneDrive — no computer required, works great with an iPad ([guide](docs/CLOUD_SYNC.md))
 - **Retry Logic**: Automatically retries failed downloads (3 attempts with exponential backoff)
 - **Graceful Shutdown**: Handles SIGTERM/SIGINT signals cleanly, cancelling in-progress downloads and cleaning up partial files so `wsl --shutdown` doesn't hang
@@ -124,7 +124,24 @@ This will:
 - Download new files that pass filters
 - Send an email report with results
 
+### Listing Your Courses
+
+See which Canvas courses are active and which ones you're syncing:
+
+```bash
+python src/main.py --list-courses
 ```
+
+Output shows one course per line — `*` marks courses currently in your sync whitelist:
+
+```
+*    12345  CS1101S - Intro to Computer Science (2026 Semester 1)
+     67890  MA1522 - Linear Algebra (2026 Semester 1)
+
+* = currently in the sync whitelist
+```
+
+Use the IDs to fill `courses.whitelist` in `config.yaml` (or the `CONFIG_YAML` secret in [cloud mode](docs/CLOUD_SYNC.md)).
 
 ## Scheduling Automated Runs
 
@@ -153,6 +170,9 @@ The script auto-detects your platform and uses the appropriate method:
 
 # Run daily at 5pm
 ./setup_scheduler.sh --trigger daily
+
+# Run the scraper immediately
+./setup_scheduler.sh --run-now
 
 # Remove scheduled task
 ./setup_scheduler.sh --uninstall
