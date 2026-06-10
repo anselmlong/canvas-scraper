@@ -25,4 +25,4 @@ fi
 echo "=== Canvas Scraper started at $(date) ===" >> logs/scraper.log
 
 timeout --signal=TERM --kill-after=30 900 \
-    $PYTHON src/main.py --non-interactive "$@" >> logs/scraper.log 2>&1
+    "$PYTHON" src/main.py --non-interactive "$@" >> logs/scraper.log 2>&1

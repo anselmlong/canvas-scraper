@@ -84,7 +84,7 @@ jobs:
         run: |
           # Resolve the download dir from config.yaml so the two never drift;
           # default mirrors src/config.py so a config without the key still works
-          DOWNLOAD_DIR=$(python -c "import yaml, pathlib; print(pathlib.Path(yaml.safe_load(open('config.yaml')).get('download', {}).get('base_path', '~/CanvasFiles')).expanduser())")
+          DOWNLOAD_DIR=$(python -c "import yaml, pathlib; cfg = yaml.safe_load(open('config.yaml')) or {}; dl = cfg.get('download') or {}; print(pathlib.Path(dl.get('base_path') or '~/CanvasFiles').expanduser())")
           if [ -d "$DOWNLOAD_DIR" ]; then
             # copy, not sync: the runner only holds files downloaded this
             # run; sync would delete everything else from the remote

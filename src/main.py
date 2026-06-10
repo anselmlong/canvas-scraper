@@ -456,8 +456,8 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
     logger.info("Starting Canvas file sync")
     logger.info("=" * 60)
 
-    # Validate configuration
-    is_valid, errors = config.validate()
+    # Validate configuration (skip email checks when this run won't send email)
+    is_valid, errors = config.validate(check_email=send_email)
     if not is_valid:
         logger.error("Configuration is invalid:")
         for error in errors:
