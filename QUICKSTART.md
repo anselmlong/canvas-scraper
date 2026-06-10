@@ -2,6 +2,14 @@
 
 Get up and running in 5 minutes!
 
+## One-Line Install (Linux/Mac/WSL)
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/anselmlong/canvas-scraper/master/install.sh)"
+```
+
+This handles everything below and drops you into the setup wizard. Or do it manually:
+
 ## Installation
 
 ```bash

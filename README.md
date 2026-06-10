@@ -1,10 +1,18 @@
-# Canvas File Scraper (v1.2.0)
+# Canvas File Scraper (v1.3.0)
 
 Lazy to click buttons? Me too.
 
-Introducing an automated file synchronization tool for Canvas LMS that intelligently downloads course files to your local machine while filtering out large or unwanted content. This tool also checks for new announcements/assignments daily, and emails you an update as long as your computer is running.
+Introducing an automated file synchronization tool for Canvas LMS that intelligently downloads course files to your local machine while filtering out large or unwanted content. This tool also checks for new announcements/assignments daily, and emails you an update — from your computer, or [from the cloud](docs/CLOUD_SYNC.md) so even your computer gets to nap.
 
 Drop me a star if you use this!
+
+## Install in one line
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/anselmlong/canvas-scraper/master/install.sh)"
+```
+
+This clones the repo, sets up Python, and walks you through the setup wizard. Prefer to do it by hand? See [Installation](#installation) below.
 
 ## Features
 
@@ -16,6 +24,7 @@ Drop me a star if you use this!
 - **Skipped File Review**: Email includes links to skipped files so you can manually download what you need
 - **Organized Storage**: Files organized by course and folder structure, mirroring Canvas layout
 - **Scheduled Runs**: Set up automated daily runs (noon by default) using cron/Task Scheduler
+- **Cloud Mode**: Run the daily sync on GitHub Actions and deliver files to Google Drive/Dropbox/OneDrive — no computer required, works great with an iPad ([guide](docs/CLOUD_SYNC.md))
 - **Retry Logic**: Automatically retries failed downloads (3 attempts with exponential backoff)
 - **Graceful Shutdown**: Handles SIGTERM/SIGINT signals cleanly, cancelling in-progress downloads and cleaning up partial files so `wsl --shutdown` doesn't hang
 - **Database Tracking**: SQLite database tracks all downloads and skipped files
@@ -150,6 +159,36 @@ The script auto-detects your platform and uses the appropriate method:
 ```
 
 On WSL, the scheduled task uses `run_with_timeout.sh` which wraps the scraper with a 15-minute timeout and signal handling, so `wsl --shutdown` won't hang.
+
+### Headless / cron runs
+
+Scheduled runs should use `--non-interactive`, which guarantees the scraper never blocks waiting for input (it exits with an error instead if configuration is missing):
+
+```bash
+python src/main.py --non-interactive
+```
+
+The setup scripts above already handle this for you.
+
+## Using it on an iPad
+
+The scraper can't run *on* an iPad, but it doesn't need to — it just needs to put the files somewhere your iPad can see. Two options, laziest first:
+
+### Option 1: Sync the download folder (30 seconds, zero code)
+
+Point `download.base_path` in `config.yaml` at a folder your desktop cloud client already syncs — iCloud Drive, OneDrive, Google Drive, or Dropbox:
+
+```yaml
+download:
+  base_path: "~/Library/Mobile Documents/com~apple~CloudDocs/CanvasFiles"  # iCloud on macOS
+  # or "C:/Users/you/OneDrive/CanvasFiles" on Windows
+```
+
+Files appear in the iPad **Files** app automatically, organized by course. Your computer still needs to be on for the daily sync to run.
+
+### Option 2: Run it in the cloud (10 minutes, runs forever)
+
+Move the daily sync to GitHub Actions and deliver files straight to cloud storage. No computer involved at all — the email digest and the files both just show up. Full walkthrough: **[docs/CLOUD_SYNC.md](docs/CLOUD_SYNC.md)**.
 
 ## Configuration
 
