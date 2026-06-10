@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>canvas-scraper · your course files, downloaded while you nap</title>
+<meta name="description" content="A CLI that syncs your Canvas LMS files, skips the 2GB lecture recordings, and emails you what's new. Every day at noon. While you do anything else.">
+<meta property="og:title" content="canvas-scraper">
+<meta property="og:description" content="Your Canvas files, downloaded while you nap. Skips the junk, emails the digest.">
+<meta property="og:type" content="website">
+<meta name="theme-color" content="#f2c14e">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23f2c14e'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500&f[]=general-sans@500,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --marigold:      oklch(0.87 0.135 88);
+    --marigold-deep: oklch(0.78 0.15 80);
+    --paper:         oklch(0.975 0.012 90);
+    --paper-warm:    oklch(0.95 0.025 88);
+    --ink:           oklch(0.28 0.035 65);
+    --ink-soft:      oklch(0.42 0.04 70);
+    --amber:         oklch(0.52 0.125 62);
+    --line:          oklch(0.84 0.04 85);
+    --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'General Sans', system-ui, sans-serif;
+    font-weight: 400;
+    color: var(--ink);
+    background: var(--paper);
+    line-height: 1.6;
+  }
+
+  ::selection { background: var(--ink); color: var(--marigold); }
+
+  a { color: var(--amber); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+  a:hover { color: var(--ink); }
+
+  .display { font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 800; }
+
+  code, .mono {
+    font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: 0.92em;
+  }
+
+  /* ── Hero: the marigold field ─────────────────────── */
+
+  .hero {
+    background: var(--marigold);
+    color: var(--ink);
+    padding: clamp(1.2rem, 3vw, 2.5rem) clamp(1.2rem, 6vw, 6rem) clamp(4rem, 9vw, 8rem);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .hero-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: clamp(4rem, 10vw, 9rem);
+  }
+
+  .wordmark { font-size: 1.05rem; letter-spacing: -0.01em; }
+
+  .hero-top a {
+    color: var(--ink);
+    font-weight: 500;
+    font-size: 0.95rem;
+    text-decoration: none;
+    border-bottom: 1.5px solid var(--ink);
+    padding-bottom: 1px;
+  }
+  .hero-top a:hover { border-bottom-color: transparent; }
+
+  .hero h1 {
+    font-size: clamp(2.9rem, 9.5vw, 7.5rem);
+    line-height: 0.98;
+    letter-spacing: -0.025em;
+    max-width: 11ch;
+  }
+
+  .hero h1 .same {
+    display: block;
+    color: var(--paper);
+    text-shadow: 0 1px 0 oklch(0.6 0.12 75 / 0.35);
+  }
+
+  .zzz {
+    display: inline-block;
+    font-size: 0.32em;
+    letter-spacing: 0.3em;
+    vertical-align: super;
+    color: var(--ink-soft);
+    animation: drift 4s var(--ease) infinite;
+  }
+
+  @keyframes drift {
+    0%, 100% { transform: translateY(0); opacity: 0.7; }
+    50%      { transform: translateY(-0.5em); opacity: 1; }
+  }
+
+  .hero-sub {
+    margin-top: clamp(1.6rem, 3.5vw, 2.8rem);
+    font-size: clamp(1.05rem, 1.8vw, 1.3rem);
+    line-height: 1.55;
+    max-width: 46ch;
+    font-weight: 500;
+  }
+
+  .hero-sub strong { font-weight: 500; }
+  .hero-sub .noon { white-space: nowrap; }
+
+  .cmd {
+    margin-top: clamp(2rem, 4vw, 3rem);
+    display: inline-flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--ink);
+    color: var(--paper);
+    border-radius: 10px;
+    padding: 0.9rem 1.2rem;
+    max-width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .cmd code { white-space: nowrap; overflow-x: auto; max-width: 100%; display: block; scrollbar-width: none; }
+  .cmd code::before { content: '$ '; opacity: 0.5; }
+
+  .cmd button {
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 500;
+    background: transparent;
+    color: var(--marigold);
+    border: 1px solid oklch(0.87 0.135 88 / 0.45);
+    border-radius: 6px;
+    padding: 0.25rem 0.7rem;
+    cursor: pointer;
+  }
+  .cmd button:hover { background: oklch(0.87 0.135 88 / 0.12); }
+
+  .hero-aside {
+    margin-top: 1.1rem;
+    font-size: 0.9rem;
+    color: var(--ink-soft);
+  }
+
+  .sun {
+    position: absolute;
+    right: clamp(-12rem, -8vw, -5rem);
+    bottom: clamp(-14rem, -10vw, -7rem);
+    width: clamp(18rem, 35vw, 32rem);
+    height: clamp(18rem, 35vw, 32rem);
+    border-radius: 50%;
+    background: var(--marigold-deep);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* ── Sections ─────────────────────────────────────── */
+
+  section { padding: clamp(3.5rem, 8vw, 7rem) clamp(1.2rem, 6vw, 6rem); }
+
+  .section-head {
+    font-size: clamp(1.7rem, 3.5vw, 2.6rem);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    max-width: 22ch;
+    margin-bottom: clamp(2rem, 4vw, 3.5rem);
+  }
+
+  /* ── A day in the life ────────────────────────────── */
+
+  .day { max-width: 60rem; }
+
+  .day-row {
+    display: grid;
+    grid-template-columns: minmax(7rem, 10rem) 1fr;
+    gap: 1.5rem;
+    padding: 1.4rem 0;
+    border-top: 1px solid var(--line);
+  }
+  .day-row:last-child { border-bottom: 1px solid var(--line); }
+
+  .day-time {
+    font-weight: 500;
+    color: var(--ink-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .day-what { max-width: 52ch; }
+  .day-what em { font-style: normal; font-weight: 500; }
+
+  .day-row.rest .day-what { font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 800; font-size: 1.3rem; letter-spacing: -0.01em; }
+
+  /* ── The digest artifact ──────────────────────────── */
+
+  .digest-section { background: var(--paper-warm); }
+
+  .digest-wrap {
+    display: grid;
+    grid-template-columns: minmax(16rem, 26rem) minmax(20rem, 34rem);
+    gap: clamp(2rem, 5vw, 5rem);
+    align-items: start;
+  }
+
+  .digest-intro { max-width: 38ch; }
+  .digest-intro p + p { margin-top: 1rem; }
+
+  .email {
+    background: var(--paper);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: 0 16px 40px -24px oklch(0.4 0.06 70 / 0.5);
+    overflow: hidden;
+    rotate: 0.6deg;
+    font-size: 0.92rem;
+  }
+
+  .email-bar {
+    padding: 0.9rem 1.3rem;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    background: oklch(0.965 0.018 88);
+  }
+  .email-bar .from { font-weight: 500; }
+  .email-bar .at { color: var(--ink-soft); font-size: 0.85rem; }
+
+  .email-body { padding: 1.3rem; }
+  .email-body h3 {
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 1.1rem 0 0.5rem;
+  }
+  .email-body h3:first-child { margin-top: 0; }
+
+  .email-body ul { list-style: none; }
+  .email-body li {
+    padding: 0.32rem 0;
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+  }
+  .email-body li .size { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .email-body li.skipped { color: var(--ink-soft); }
+  .email-body li.skipped .why { font-size: 0.82rem; }
+
+  .email-due {
+    margin-top: 1.2rem;
+    padding: 0.8rem 1rem;
+    background: var(--marigold);
+    border-radius: 8px;
+    font-weight: 500;
+  }
+
+  /* ── Grabs vs skips ───────────────────────────────── */
+
+  .sorter {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(2rem, 5vw, 4rem);
+    max-width: 60rem;
+  }
+
+  .sorter h3 {
+    font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.4rem, 2.5vw, 1.9rem);
+    letter-spacing: -0.015em;
+    margin-bottom: 1.2rem;
+  }
+
+  .sorter ul { list-style: none; }
+  .sorter li {
+    padding: 0.7rem 0;
+    border-top: 1px solid var(--line);
+    max-width: 38ch;
+  }
+  .sorter .skips li { color: var(--ink-soft); }
+  .sorter .skips li s { text-decoration-color: oklch(0.6 0.1 70 / 0.6); }
+
+  .sorter-note {
+    margin-top: 2rem;
+    font-size: 0.95rem;
+    color: var(--ink-soft);
+    max-width: 52ch;
+  }
+
+  /* ── Spec strip ───────────────────────────────────── */
+
+  .spec {
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding-top: 2.2rem;
+    padding-bottom: 2.2rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.6rem 2.5rem;
+    font-size: 0.92rem;
+    color: var(--ink-soft);
+  }
+  .spec span::before { content: '· '; color: var(--marigold-deep); font-weight: 800; }
+
+  /* ── Footer ───────────────────────────────────────── */
+
+  footer {
+    background: var(--ink);
+    color: var(--paper);
+    padding: clamp(3.5rem, 8vw, 6rem) clamp(1.2rem, 6vw, 6rem);
+  }
+
+  footer .star {
+    font-family: 'Cabinet Grotesk', system-ui, sans-serif;
+    font-weight: 800;
+    font-size: clamp(1.9rem, 4.5vw, 3.2rem);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    max-width: 18ch;
+  }
+
+  footer .star a { color: var(--marigold); text-decoration-thickness: 3px; }
+  footer .star a:hover { color: var(--paper); }
+
+  .foot-meta {
+    margin-top: 2.5rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 2.5rem;
+    font-size: 0.9rem;
+    color: oklch(0.7 0.03 80);
+  }
+  .foot-meta a { color: inherit; }
+  .foot-meta a:hover { color: var(--marigold); }
+
+  /* ── Reveal ───────────────────────────────────────── */
+
+  .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.8s var(--ease), transform 0.8s var(--ease); }
+  .js .reveal.in { opacity: 1; transform: none; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .js .reveal { opacity: 1; transform: none; transition: none; }
+    .zzz { animation: none; }
+  }
+
+  @media (max-width: 720px) {
+    .digest-wrap, .sorter { grid-template-columns: 1fr; }
+    .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
+    .email { rotate: 0deg; }
+  }
+</style>
+<script>document.documentElement.classList.add('js');</script>
+</head>
+<body>
+
+<header class="hero">
+  <div class="sun" aria-hidden="true"></div>
+
+  <div class="hero-top">
+    <span class="wordmark display">canvas&#8209;scraper</span>
+    <a href="https://github.com/anselmlong/canvas-scraper">GitHub</a>
+  </div>
+
+  <h1 class="display">Lazy to click buttons? <span class="same">Same.<span class="zzz" aria-hidden="true">z z z</span></span></h1>
+
+  <p class="hero-sub">
+    canvas-scraper syncs your Canvas course files to your laptop, skips the
+    2&nbsp;GB lecture recordings, and emails you what's new.
+    <span class="noon">Every day at noon.</span> While you do anything else.
+  </p>
+
+  <div class="cmd">
+    <code id="setup-cmd">python src/main.py --setup</code>
+    <button type="button" onclick="copyCmd(this)">copy</button>
+  </div>
+  <p class="hero-aside">Python 3.9+, a Canvas API token, and ten minutes. That's the whole setup.</p>
+</header>
+
+<section class="reveal">
+  <h2 class="section-head display">A day in the life of doing nothing</h2>
+  <div class="day">
+    <div class="day-row">
+      <div class="day-time">12:00 pm</div>
+      <p class="day-what">It runs. New slides and tutorial sheets land in folders that mirror your Canvas layout, course by course.</p>
+    </div>
+    <div class="day-row">
+      <div class="day-time">12:03 pm</div>
+      <p class="day-what">It skips a 1.4&nbsp;GB lecture recording, a textbook PDF you were never going to open, and everything you already have.</p>
+    </div>
+    <div class="day-row">
+      <div class="day-time">12:04 pm</div>
+      <p class="day-what">The digest email arrives: <em>what's new, what was skipped (with links), what's due.</em></p>
+    </div>
+    <div class="day-row rest">
+      <div class="day-time">12:05 pm onwards</div>
+      <p class="day-what">Nothing. That's the feature.</p>
+    </div>
+  </div>
+</section>
+
+<section class="digest-section reveal">
+  <div class="digest-wrap">
+    <div class="digest-intro">
+      <h2 class="section-head display">The noon email</h2>
+      <p>One email a day, only when something happened. New files, new announcements, upcoming deadlines.</p>
+      <p>Skipped files come with links, so on the rare day you actually want the lecture recording, it's one click. Not seventeen.</p>
+    </div>
+
+    <figure class="email" aria-label="Example daily digest email">
+      <div class="email-bar">
+        <span class="from">canvas-scraper</span>
+        <span class="at">today, 12:04 pm</span>
+      </div>
+      <div class="email-body">
+        <h3>Downloaded</h3>
+        <ul>
+          <li><span>CS2105 · Lecture 9 slides.pdf</span> <span class="size">2.1 MB</span></li>
+          <li><span>CS2103T · Week 10 tutorial.pdf</span> <span class="size">340 KB</span></li>
+          <li><span>GEA1000 · Assignment 3 brief.docx</span> <span class="size">88 KB</span></li>
+        </ul>
+        <h3>Skipped, linked anyway</h3>
+        <ul>
+          <li class="skipped"><span>CS2105 · Lecture 9 recording.mp4</span> <span class="why">1.4 GB, video</span></li>
+          <li class="skipped"><span>GEA1000 · Course textbook.pdf</span> <span class="why">92 MB</span></li>
+        </ul>
+        <p class="email-due">Due Friday: CS2103T tP milestone v1.3</p>
+      </div>
+    </figure>
+  </div>
+</section>
+
+<section class="reveal">
+  <h2 class="section-head display">It has opinions about your storage</h2>
+  <div class="sorter">
+    <div class="grabs">
+      <h3>Grabs</h3>
+      <ul>
+        <li>New and updated lecture slides</li>
+        <li>Tutorial sheets and assignment specs</li>
+        <li>Anything under 50 MB that changed since yesterday</li>
+        <li>New courses it spots each semester (it asks first)</li>
+      </ul>
+    </div>
+    <div class="skips">
+      <h3>Skips</h3>
+      <ul>
+        <li><s>Lecture recordings</s> watch at 2x on Canvas like everyone else</li>
+        <li><s>Textbooks</s> 92 MB of good intentions</li>
+        <li><s>Files over 50 MB</s> your SSD says thank you</li>
+        <li><s>Duplicates</s> it remembers what it already took</li>
+      </ul>
+    </div>
+  </div>
+  <p class="sorter-note">Size limits and filters are yours to change in one YAML file. The defaults are just well-rested.</p>
+
+  <div class="spec" style="margin-top: clamp(2.5rem, 5vw, 4rem);">
+    <span>retries failed downloads, exponential backoff</span>
+    <span>SQLite tracks every file</span>
+    <span>fuzzy course matching ("cs" finds CS2105)</span>
+    <span>cron and Task Scheduler setup included</span>
+    <span>shuts down gracefully, no hung WSL</span>
+  </div>
+</section>
+
+<footer>
+  <p class="star display reveal">Saved you a click? <a href="https://github.com/anselmlong/canvas-scraper">Drop a star.</a></p>
+  <div class="foot-meta">
+    <span>Built by <a href="https://anselmlong.com">Anselm Long</a></span>
+    <span><a href="https://github.com/anselmlong/canvas-scraper">github.com/anselmlong/canvas-scraper</a></span>
+    <span>Runs on your machine. Your Canvas token never leaves it.</span>
+  </div>
+</footer>
+
+<script>
+  function copyCmd(btn) {
+    navigator.clipboard.writeText(document.getElementById('setup-cmd').textContent).then(() => {
+      btn.textContent = 'copied';
+      setTimeout(() => { btn.textContent = 'copy'; }, 1600);
+    });
+  }
+
+  const io = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+    }
+  }, { threshold: 0.15 });
+  document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+  // Safety net: nothing stays hidden, observer or not. Lazy, not broken.
+  setTimeout(() => {
+    document.querySelectorAll('.reveal:not(.in)').forEach((el) => el.classList.add('in'));
+  }, 1800);
+</script>
+
+</body>
+</html>
