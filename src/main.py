@@ -462,7 +462,8 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         logger.error("Configuration is invalid:")
         for error in errors:
             logger.error(f"  - {error}")
-        return
+        # Exit non-zero so cron/CI runs fail loudly instead of green-but-dead
+        sys.exit(1)
 
     # Initialize components
     api_token = config.canvas_api_token or ""
@@ -754,6 +755,7 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
     logger.info(f"Upcoming assignments: {len(upcoming_assignments)}")
 
     # Send email notification
+    email_failed = False
     if send_email and config.get("notification.email.enabled") and not dry_run:
         logger.info("\nSending email notification...")
         email_notifier = EmailNotifier(config)
@@ -764,6 +766,7 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
             metadata_db.mark_assignments_notified()
         else:
             logger.error("Failed to send email notification")
+            email_failed = True
 
     # Add run history
     if not dry_run:
@@ -775,6 +778,11 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
             total_size_bytes=total_size,
             success=len(failed_downloads) == 0,
         )
+
+    if email_failed:
+        # The digest is the product in cron/cloud mode - fail loudly so the
+        # scheduler/workflow shows red instead of green-but-silent
+        sys.exit(1)
 
 
 def main():
@@ -806,6 +814,12 @@ def main():
         action="store_true",
         help="Disable email notification for this run",
     )
+    parser.add_argument(
+        "--non-interactive",
+        action="store_true",
+        help="Never prompt for input; exit with an error if configuration is "
+        "missing (for cron/CI runs)",
+    )
 
     # Testing & utilities
     parser.add_argument("--test-email", action="store_true", help="Send test email")
@@ -829,7 +843,27 @@ def main():
 
     # Handle setup wizard
     if args.setup:
+        if args.non_interactive or not sys.stdin.isatty():
+            logger.error("The setup wizard needs an interactive terminal.")
+            sys.exit(1)
         setup_wizard(config)
+        return
+
+    if args.list_courses:
+        if not (config.canvas_api_token and config.canvas_base_url):
+            logger.error("Canvas API token/base URL not configured. Run --setup first.")
+            sys.exit(1)
+        canvas_client = CanvasClient(config.canvas_base_url, config.canvas_api_token)
+        course_manager = CourseManager(canvas_client, config)
+        courses = course_manager.get_active_courses()
+        if not courses:
+            print("No active courses found.")
+            return
+        synced_ids = {str(c) for c in config.get("courses.whitelist", [])}
+        for course in courses:
+            marker = "*" if str(course["id"]) in synced_ids else " "
+            print(f"{marker} {course['id']:>8}  {course['code']} - {course['name']} ({course['term']})")
+        print("\n* = currently in the sync whitelist")
         return
 
     if args.test_email:
@@ -842,6 +876,17 @@ def main():
 
     # Check if configured
     if not config.is_configured():
+        # Never fall into the interactive wizard from a cron/CI run - it
+        # would hang forever waiting on input() that never comes
+        non_interactive = args.non_interactive or not sys.stdin.isatty()
+        if non_interactive:
+            logger.error("Canvas Scraper is not configured and running non-interactively.")
+            _, errors = config.validate()
+            for error in errors:
+                logger.error(f"  - {error}")
+            logger.error("Run 'python src/main.py --setup' from a terminal to configure.")
+            sys.exit(1)
+
         print("Canvas Scraper is not configured yet. Starting setup wizard...")
         setup_wizard(config)
 
