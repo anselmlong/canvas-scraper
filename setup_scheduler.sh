@@ -145,6 +145,7 @@ setup_mac() {
     <array>
         <string>$PYTHON_BIN</string>
         <string>$MAIN_SCRIPT</string>
+        <string>--non-interactive</string>
     </array>
     <key>WorkingDirectory</key>
     <string>$PROJECT_DIR</string>
@@ -203,8 +204,8 @@ setup_linux() {
     echo ""
 
     # Cron entries
-    CRON_REBOOT="@reboot sleep 60 && cd $PROJECT_DIR && $PYTHON_BIN $MAIN_SCRIPT >> $LOG_FILE 2>&1"
-    CRON_DAILY="0 17 * * * cd $PROJECT_DIR && $PYTHON_BIN $MAIN_SCRIPT >> $LOG_FILE 2>&1"
+    CRON_REBOOT="@reboot sleep 60 && cd \"$PROJECT_DIR\" && \"$PYTHON_BIN\" \"$MAIN_SCRIPT\" --non-interactive >> \"$LOG_FILE\" 2>&1"
+    CRON_DAILY="0 17 * * * cd \"$PROJECT_DIR\" && \"$PYTHON_BIN\" \"$MAIN_SCRIPT\" --non-interactive >> \"$LOG_FILE\" 2>&1"
 
     if $UNINSTALL; then
         if crontab -l 2>/dev/null | grep -q "$MAIN_SCRIPT"; then

@@ -149,10 +149,10 @@ if ($IsWSLPath -or (-not (Test-Path "$ScriptDir\venv\Scripts\python.exe"))) {
     }
 
     $action = New-ScheduledTaskAction -Execute $PythonExe `
-        -Argument "`"$MainScript`"" `
+        -Argument "`"$MainScript`" --non-interactive" `
         -WorkingDirectory $ScriptDir
 
-    $ExecuteInfo = "$PythonExe `"$MainScript`""
+    $ExecuteInfo = "$PythonExe `"$MainScript`" --non-interactive"
 }
 
 # Create trigger based on parameter

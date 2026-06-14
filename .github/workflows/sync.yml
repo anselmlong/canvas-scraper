@@ -1,0 +1,103 @@
+name: Canvas Sync
+
+# Runs the scraper in the cloud so your computer (or iPad) never has to.
+# See docs/CLOUD_SYNC.md for setup instructions.
+
+on:
+  schedule:
+    - cron: "0 4 * * *" # daily at 12:00 SGT (04:00 UTC)
+  workflow_dispatch: # allow manual runs from the Actions tab
+
+concurrency:
+  group: canvas-sync
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      HAS_RCLONE: ${{ secrets.RCLONE_CONF != '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Write config.yaml from secret
+        env:
+          CONFIG_YAML: ${{ secrets.CONFIG_YAML }}
+        run: |
+          if [ -z "$CONFIG_YAML" ]; then
+            echo "::error::CONFIG_YAML secret is not set. See docs/CLOUD_SYNC.md"
+            exit 1
+          fi
+          printf '%s\n' "$CONFIG_YAML" > config.yaml
+
+      # Installed BEFORE the sync so a flaky apt mirror or missing variable
+      # fails fast instead of discarding a completed Canvas scrape
+      - name: Set up rclone
+        if: env.HAS_RCLONE == 'true'
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+          RCLONE_REMOTE: ${{ vars.RCLONE_REMOTE }}
+        run: |
+          if [ -z "$RCLONE_REMOTE" ]; then
+            echo "::error::RCLONE_CONF secret is set but the RCLONE_REMOTE repository variable is not (e.g. 'gdrive:CanvasFiles'). See docs/CLOUD_SYNC.md"
+            exit 1
+          fi
+          sudo apt-get -qq update && sudo apt-get -qq install -y rclone
+          mkdir -p ~/.config/rclone
+          printf '%s\n' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          chmod 600 ~/.config/rclone/rclone.conf
+
+      # The SQLite database is what makes sync incremental. Without it,
+      # every run would re-download every file.
+      - name: Restore download database
+        uses: actions/cache/restore@v4
+        with:
+          path: data/scraper.db
+          key: scraper-db-${{ github.run_id }}
+          restore-keys: scraper-db-
+
+      - name: Run sync
+        env:
+          CANVAS_API_TOKEN: ${{ secrets.CANVAS_API_TOKEN }}
+          EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+          EMAIL_APP_PASSWORD: ${{ secrets.EMAIL_APP_PASSWORD }}
+        run: python src/main.py --non-interactive
+
+      - name: Upload files to cloud storage
+        if: env.HAS_RCLONE == 'true'
+        env:
+          RCLONE_REMOTE: ${{ vars.RCLONE_REMOTE }}
+        run: |
+          # Resolve the download dir from config.yaml so the two never drift;
+          # default mirrors src/config.py so a config without the key still works
+          DOWNLOAD_DIR=$(python -c "import yaml, pathlib; cfg = yaml.safe_load(open('config.yaml')) or {}; dl = cfg.get('download') or {}; print(pathlib.Path(dl.get('base_path') or '~/CanvasFiles').expanduser())")
+          if [ -d "$DOWNLOAD_DIR" ]; then
+            # copy, not sync: the runner only holds files downloaded this
+            # run; sync would delete everything else from the remote
+            rclone copy "$DOWNLOAD_DIR" "$RCLONE_REMOTE" --verbose
+          else
+            echo "No files downloaded this run, nothing to upload."
+          fi
+
+      # Only saved when every prior step succeeded: if the upload failed, the
+      # DB must not record those files as downloaded or they would never be
+      # re-fetched and never reach cloud storage
+      - name: Save download database
+        uses: actions/cache/save@v4
+        with:
+          path: data/scraper.db
+          key: scraper-db-${{ github.run_id }}

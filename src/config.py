@@ -221,8 +221,12 @@ class Config:
             and len(self.get("courses.whitelist", [])) > 0
         )
 
-    def validate(self) -> tuple[bool, list[str]]:
+    def validate(self, check_email: bool = True) -> tuple[bool, list[str]]:
         """Validate configuration.
+
+        Args:
+            check_email: If False, skip email credential checks (e.g. when the
+                run won't send email, such as --no-email)
 
         Returns:
             Tuple of (is_valid, list_of_errors)
@@ -238,7 +242,7 @@ class Config:
         if not self.get("courses.whitelist"):
             errors.append("No courses selected for syncing")
 
-        if self.get("notification.email.enabled"):
+        if check_email and self.get("notification.email.enabled"):
             if not self.email_username:
                 errors.append("Email username not set in .env file")
             if not self.email_password:

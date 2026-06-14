@@ -2,6 +2,14 @@
 
 Get up and running in 5 minutes!
 
+## One-Line Install (Linux/Mac/WSL)
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/anselmlong/canvas-scraper/master/install.sh)"
+```
+
+This handles everything below and drops you into the setup wizard. Or do it manually:
+
 ## Installation
 
 ```bash
@@ -101,7 +109,7 @@ This shows you exactly what files would be downloaded and which would be skipped
 
 ## Schedule Automated Runs
 
-Set up automatic syncing when you log in (recommended) or daily at 5pm. Your computer has to be up and running at the time for it to work.
+Set up automatic syncing when you log in (recommended) or daily at 5pm. Your computer has to be up and running at the time for it to work — or skip that requirement entirely by [running the sync in the cloud](docs/CLOUD_SYNC.md).
 
 ### All Platforms (Auto-Detect)
 
@@ -120,7 +128,7 @@ This auto-detects your platform:
 # Run on login (default)
 ./setup_scheduler.sh
 
-# Run daily at noon instead
+# Run daily at 5pm instead
 ./setup_scheduler.sh --trigger daily
 
 # Run immediately
@@ -148,8 +156,11 @@ python src/main.py --dry-run
 # Sync without email notification
 python src/main.py --no-email
 
-# Add newly detected courses
-python src/main.py --add-courses
+# List active courses (* = in your sync whitelist)
+python src/main.py --list-courses
+
+# Headless run for cron/CI — never prompts, fails loudly if unconfigured
+python src/main.py --non-interactive
 
 # Test email configuration
 python src/main.py --test-email
@@ -230,8 +241,8 @@ filters:
 - Generate a new app password if needed
 
 ### "No courses selected"
-- Run `python src/main.py --add-courses`
-- Select the courses you want to sync
+- Re-run `python src/main.py --setup` and select the courses you want to sync
+- Or add course IDs from `python src/main.py --list-courses` to `courses.whitelist` in `config.yaml`
 
 ### Files aren't downloading
 - Check `config.yaml` filter settings
