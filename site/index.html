@@ -149,6 +149,13 @@
     color: var(--ink-soft);
   }
 
+  .hero-alt {
+    margin-top: 1.8rem;
+    font-size: 0.95rem;
+  }
+  .hero-alt a { color: var(--ink); font-weight: 500; }
+  .hero-alt a:hover { color: var(--paper); }
+
   .sun {
     position: absolute;
     right: clamp(-12rem, -8vw, -5rem);
@@ -356,6 +363,34 @@
     .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
     .email { rotate: 0deg; }
   }
+
+  /* ── Cloud pitch card ──────────────────────────── */
+
+  .cloud-pitch { margin-top: 2rem; }
+
+  .cloud-card {
+    background: var(--paper-warm);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 1.8rem 2rem;
+    max-width: 42rem;
+  }
+  .cloud-card h3 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.6rem; }
+  .cloud-card p { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.6; }
+  .cloud-card a { color: var(--amber); }
+  .cloud-card a:hover { color: var(--ink); }
+  .cloud-cta { margin-top: 0.8rem; }
+  .btn {
+    display: inline-block;
+    font-weight: 500;
+    background: var(--ink);
+    color: var(--paper) !important;
+    padding: 0.5rem 1.2rem;
+    border-radius: 8px;
+    text-decoration: none;
+    font-size: 0.9rem;
+  }
+  .btn:hover { background: var(--ink-soft) !important; }
 </style>
 <script>document.documentElement.classList.add('js');</script>
 </head>
@@ -382,6 +417,10 @@
     <button type="button" onclick="copyCmd(this)">copy</button>
   </div>
   <p class="hero-aside">Python 3.9+, a Canvas API token, and ten minutes. That's the whole setup.</p>
+
+  <div class="hero-alt">
+    <p><span class="mono">📱 Using an iPad?</span> Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — zero local setup.</p>
+  </div>
 </header>
 
 <section class="reveal">
@@ -402,6 +441,14 @@
     <div class="day-row rest">
       <div class="day-time">12:05 pm onwards</div>
       <p class="day-what">Nothing. That's the feature.</p>
+    </div>
+  </div>
+
+  <div class="cloud-pitch reveal">
+    <div class="cloud-card">
+      <h3>📱 No computer? No problem.</h3>
+      <p>Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — click, add 4 secrets, enable Actions. The scraper runs on GitHub's servers and pushes files to Google Drive / Dropbox. Your iPad picks them up from there.</p>
+      <p class="cloud-cta"><a href="https://github.com/anselmlong/canvas-scraper" class="btn">Use the template →</a></p>
     </div>
   </div>
 </section>

@@ -10,10 +10,11 @@ the files to cloud storage (Google Drive, Dropbox, or OneDrive), so:
 
 Setup takes about ten minutes, once, ever.
 
-## 1. Get your own copy of the repo
+## 1. Get your own copy
 
-Fork this repository on GitHub (or import it into a **private** repo if you
-prefer — Settings aren't shared, your secrets are yours either way).
+**Click "Use this template"** on the [repo page](https://github.com/anselmlong/canvas-scraper)
+→ you get your own copy with the workflow files already in place. No forking,
+no cloning. Your new repo can be **private** (secrets stay yours).
 
 ## 2. Add your secrets
 
@@ -26,9 +27,17 @@ In your repo: **Settings → Secrets and variables → Actions → New repositor
 | `EMAIL_APP_PASSWORD` | 16-character Gmail App Password ([instructions](https://support.google.com/accounts/answer/185833)) |
 | `CONFIG_YAML` | The full contents of your `config.yaml` (see below) |
 
-For `CONFIG_YAML`, paste a complete config. Easiest path: run the setup
-wizard locally once (`python src/main.py --setup`) and paste the resulting
-`config.yaml`. Any `download.base_path` works — the workflow reads it from
+For `CONFIG_YAML`, paste a complete config. Simplest path: use the `--export-config` flag:
+
+```bash
+python src/main.py --export-config
+```
+
+It asks for your Canvas URL, API token, course IDs, and email — then prints a
+ready-to-paste config. No local files are created.
+
+If you already have a configured local install, just paste your `config.yaml`
+contents. Any `download.base_path` works — the workflow reads it from
 the config to know what to upload. A minimal example:
 
 ```yaml

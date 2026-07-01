@@ -785,6 +785,89 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         sys.exit(1)
 
 
+def _handle_export_config():
+    """Generate a config.yaml to stdout (for GitHub Actions CONFIG_YAML secret).
+
+    Prompts for minimal config, outputs valid YAML. No filesystem changes.
+    Copy the output and paste it into your repo's CONFIG_YAML secret.
+    """
+    print("Canvas Config Generator — paste the output into your CONFIG_YAML secret")
+    print()
+
+    base_url = input("Canvas base URL [https://canvas.nus.edu.sg/]: ").strip()
+    if not base_url:
+        base_url = "https://canvas.nus.edu.sg/"
+
+    api_token = input("Canvas API token: ").strip()
+    while not api_token:
+        api_token = input("Canvas API token (required): ").strip()
+
+    print("Enter course IDs (one per line, blank line to finish):")
+    course_ids = []
+    while True:
+        line = input("  > ").strip()
+        if not line:
+            break
+        try:
+            course_ids.append(int(line))
+        except ValueError:
+            print(f"  Skipping '{line}' — must be a numeric course ID")
+    while not course_ids:
+        print("At least one course ID is required.")
+        while True:
+            line = input("  > ").strip()
+            if not line:
+                break
+            try:
+                course_ids.append(int(line))
+            except ValueError:
+                print(f"  Skipping '{line}' — must be a numeric course ID")
+
+    email = input("Email for daily digest (leave blank to skip email): ").strip()
+
+    print()
+    print("--- paste below into your CONFIG_YAML secret ---")
+    print()
+    print("canvas:")
+    print(f'  base_url: "{base_url}"')
+    print("download:")
+    print("  base_path: ~/CanvasFiles")
+    print("  max_file_size_mb: 50")
+    print("  concurrent_downloads: 3")
+    print("filters:")
+    print("  extension_blacklist:")
+    for ext in [".mp4", ".avi", ".mov", ".mkv", ".webm", ".flv", ".wmv", ".m4v", ".mpeg", ".mpg", ".epub", ".mobi"]:
+        print(f"    - {ext}")
+    print("  name_patterns_to_skip:")
+    for pat in ["textbook", "ebook", "full book", "recording", "lecture recording", "video lecture"]:
+        print(f"    - {pat}")
+    print("  pdf_max_size_mb: 30")
+    print("courses:")
+    print("  sync_mode: whitelist")
+    print("  whitelist:")
+    for cid in course_ids:
+        print(f"    - {cid}")
+    print("notification:")
+    print("  email:")
+    print(f"    enabled: {'true' if email else 'false'}")
+    print(f'    recipient: "{email}"')
+    print("    smtp_server: smtp.gmail.com")
+    print("    smtp_port: 587")
+    print("    from_name: Canvas Scraper")
+    print("scheduling:")
+    print("  enabled: false")
+    print()
+    print("--- also add this as a repo secret: ---")
+    print(f"Name: CANVAS_API_TOKEN")
+    print(f"Value: <paste your token here>")
+    if email:
+        print()
+        print("Don't forget to also set:")
+        print("  EMAIL_USERNAME — your Gmail address")
+        print("  EMAIL_APP_PASSWORD — 16-char Gmail App Password")
+    print()
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(description="Canvas File Scraper")
@@ -825,6 +908,11 @@ def main():
     parser.add_argument("--test-email", action="store_true", help="Send test email")
     parser.add_argument(
         "--list-courses", action="store_true", help="List all active courses"
+    )
+    parser.add_argument(
+        "--export-config",
+        action="store_true",
+        help="Generate a config.yaml to stdout (paste into GitHub Actions CONFIG_YAML secret)",
     )
 
     # Logging
@@ -872,6 +960,11 @@ def main():
             print("✓ Test email sent successfully")
         else:
             print("✗ Failed to send test email")
+        return
+
+    # Export config to stdout (for GitHub Actions CONFIG_YAML secret)
+    if args.export_config:
+        _handle_export_config()
         return
 
     # Check if configured

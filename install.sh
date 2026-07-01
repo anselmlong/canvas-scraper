@@ -82,7 +82,88 @@ fi
 
 echo
 info "To schedule daily runs: cd $INSTALL_DIR && ./setup_scheduler.sh"
-info "To sync without your computer on (and read files on iPad): see docs/CLOUD_SYNC.md"
+info "To sync without your computer on (iPad/cloud): see docs/CLOUD_SYNC.md"
+
+# --- Optional: set up GitHub Actions cloud sync ---
+echo
+echo "─────────────────────────────────────────────"
+echo "  Want iPad/cloud access too?"
+echo ""
+echo "  I can create a GitHub repo, push this install,"
+echo "  and tell you exactly what secrets to add."
+echo "─────────────────────────────────────────────"
+echo -n "Set up cloud sync? (y/N) "
+read -r CLOUD_CHOICE </dev/tty
+case "$CLOUD_CHOICE" in
+    [yY]|[yY][eE][sS])
+        CLOUD_SETUP=1
+        ;;
+    *)
+        CLOUD_SETUP=0
+        ;;
+esac
+
+if [ "$CLOUD_SETUP" = "1" ]; then
+    if command -v gh >/dev/null 2>&1; then
+        # gh is available — try authenticated path
+        if gh auth status 2>/dev/null; then
+            echo
+            info "GitHub CLI authenticated. Creating a repo..."
+            echo -n "Repo name (default: canvas-scraper): "
+            read -r REPO_NAME </dev/tty
+            REPO_NAME="${REPO_NAME:-canvas-scraper}"
+
+            # Create private repo and push
+            gh repo create "$REPO_NAME" --private --source="$INSTALL_DIR" --remote=origin --push 2>&1 && {
+                echo
+                info "Repo created: https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner 2>/dev/null || echo 'your-account/$REPO_NAME')"
+                echo
+                echo "Now add these secrets (all are required except RCLONE_CONF):"
+                echo "  https://github.com/$(gh repo view --json nameWithOwner -q .nameWithOwner)/settings/secrets/actions"
+                echo
+                info "Secrets checklist:"
+                echo "  1. CANVAS_API_TOKEN — your Canvas API token"
+                echo "  2. CONFIG_YAML — run 'venv/bin/python src/main.py --export-config' to generate"
+                echo "  3. EMAIL_USERNAME — your Gmail address"
+                echo "  4. EMAIL_APP_PASSWORD — 16-char Gmail App Password"
+                echo "  5. RCLONE_CONF — (optional) run 'rclone config' locally, paste rclone.conf"
+                echo ""
+                echo "Then go to Actions → enable workflows. Done."
+            } || {
+                echo
+                info "Could not create repo. Try manually:"
+                _print_cloud_instructions
+            }
+        else
+            echo
+            info "gh is installed but not authenticated."
+            echo -n "Log in with 'gh auth login' first, or use the template approach."
+            _print_cloud_instructions
+        fi
+    else
+        echo
+        info "gh (GitHub CLI) not found."
+        _print_cloud_instructions
+    fi
+fi
+}
+
+_print_cloud_instructions() {
+    echo ""
+    echo "─────────────────────────────────"
+    echo "  Cloud sync setup (2 minutes)"
+    echo "─────────────────────────────────"
+    echo ""
+    echo "  1. Go to https://github.com/anselmlong/canvas-scraper"
+    echo "  2. Click 'Use this template' → create your own repo"
+    echo "  3. Add these secrets:"
+    echo "     • CANVAS_API_TOKEN"
+    echo "     • CONFIG_YAML      (run --export-config)"  
+    echo "     • EMAIL_USERNAME"
+    echo "     • EMAIL_APP_PASSWORD"
+    echo "  4. Enable Actions → done"
+    echo ""
+    echo "  Full guide: docs/CLOUD_SYNC.md"
 }
 
 main "$@"
