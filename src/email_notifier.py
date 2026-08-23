@@ -8,7 +8,7 @@ from typing import Dict, Any
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
-from jinja2 import Environment, FileSystemLoader
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 
 logger = logging.getLogger(__name__)
@@ -36,8 +36,14 @@ class EmailNotifier:
         self.from_address = config.get("notification.email.from_address", self.username)
 
         # Load Jinja2 template
+        # Course/file/announcement/assignment content in the report comes from
+        # Canvas (instructor- or student-controlled), so it must be escaped to
+        # avoid HTML/link injection in the rendered email.
         template_dir = self.config.internal_resource_dir / "templates"
-        env = Environment(loader=FileSystemLoader(str(template_dir)))
+        env = Environment(
+            loader=FileSystemLoader(str(template_dir)),
+            autoescape=select_autoescape(["html"]),
+        )
         self.template = env.get_template("email_report.html")
 
         logger.info(

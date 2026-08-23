@@ -46,6 +46,7 @@ class DownloadManager:
         max_retries: int = 3,
         retry_delay: float = 2.0,
         shutdown_event: Optional[threading.Event] = None,
+        max_bytes: Optional[int] = None,
     ):
         """Initialize download manager.
 
@@ -55,12 +56,16 @@ class DownloadManager:
             max_retries: Maximum retry attempts per file
             retry_delay: Initial delay between retries (seconds)
             shutdown_event: Optional event to signal graceful shutdown
+            max_bytes: Optional hard cap on bytes written per file, enforced
+                against the actual streamed response (not just Canvas's
+                reported file size)
         """
         self.canvas_client = canvas_client
         self.max_workers = max_workers
         self.max_retries = max_retries
         self.retry_delay = retry_delay
         self.shutdown_event = shutdown_event
+        self.max_bytes = max_bytes
 
         logger.info(
             f"Initialized download manager "
@@ -148,6 +153,7 @@ class DownloadManager:
                 success = self.canvas_client.download_file(
                     task.file_url, str(task.destination),
                     shutdown_event=self.shutdown_event,
+                    max_bytes=self.max_bytes,
                 )
 
                 if success:

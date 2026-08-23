@@ -299,6 +299,8 @@ def setup_wizard(config: Config):
     api_token = input(
         "\nEnter your Canvas API token: (Go to Canvas -> Account -> Settings -> Approved Integrations -> New Access Token) "
     ).strip()
+    while not api_token:
+        api_token = input("Canvas API token (required, paste it directly after this prompt): ").strip()
     config.set_env("CANVAS_API_TOKEN", api_token)
 
     # Test connection
@@ -477,6 +479,7 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
         canvas_client,
         max_workers=config.get("download.concurrent_downloads", 3),
         shutdown_event=shutdown_event,
+        max_bytes=filter_engine.max_size_bytes,
     )
     course_manager = CourseManager(canvas_client, config)
     report_generator = ReportGenerator(file_organizer)

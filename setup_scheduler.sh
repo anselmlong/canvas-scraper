@@ -79,11 +79,32 @@ detect_platform() {
 
 PLATFORM=$(detect_platform)
 
-# Check if virtual environment exists
+# Set up virtual environment + dependencies if missing (mirrors install.sh)
 if [ ! -f "$PYTHON_BIN" ]; then
-    echo -e "${RED}Error: Python virtual environment not found at $PROJECT_DIR/venv${NC}"
-    echo "Please run: python -m venv venv && source venv/bin/activate && pip install -r requirements.txt"
-    exit 1
+    PYTHON=""
+    for candidate in python3 python; do
+        if command -v "$candidate" >/dev/null 2>&1 &&
+            "$candidate" -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' 2>/dev/null; then
+            PYTHON="$candidate"
+            break
+        fi
+    done
+    if [ -z "$PYTHON" ]; then
+        echo -e "${RED}Error: Python 3.9+ is required.${NC} Install it from https://www.python.org/downloads/ and re-run."
+        exit 1
+    fi
+
+    echo -e "${CYAN}Virtual environment not found, setting one up...${NC}"
+    "$PYTHON" -m venv "$PROJECT_DIR/venv"
+    "$PROJECT_DIR/venv/bin/pip" install --quiet --upgrade pip
+    "$PROJECT_DIR/venv/bin/pip" install --quiet -r "$PROJECT_DIR/requirements.txt"
+    echo -e "${GREEN}Dependencies installed.${NC}"
+    echo ""
+elif ! "$PYTHON_BIN" -c "import canvasapi" >/dev/null 2>&1; then
+    echo -e "${CYAN}Dependencies missing, installing...${NC}"
+    "$PYTHON_BIN" -m pip install --quiet -r "$PROJECT_DIR/requirements.txt"
+    echo -e "${GREEN}Dependencies installed.${NC}"
+    echo ""
 fi
 
 # ============================================================================

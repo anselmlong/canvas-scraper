@@ -227,7 +227,11 @@ class CanvasClient:
             return ""
 
     def download_file(
-        self, file_url: str, destination: str, shutdown_event=None
+        self,
+        file_url: str,
+        destination: str,
+        shutdown_event=None,
+        max_bytes: Optional[int] = None,
     ) -> bool:
         """Download a file from Canvas.
 
@@ -235,10 +239,15 @@ class CanvasClient:
             file_url: Canvas file download URL
             destination: Local file path to save to
             shutdown_event: Optional threading.Event to signal cancellation
+            max_bytes: Optional hard cap on bytes written. The actual response
+                body can differ from Canvas's reported file size, so this is
+                enforced independently while streaming to avoid an oversized
+                or malicious response filling up disk.
 
         Returns:
             True if successful, False otherwise
         """
+        dest_path = Path(destination)
         try:
             response = requests.get(
                 file_url,
@@ -249,7 +258,7 @@ class CanvasClient:
             response.raise_for_status()
 
             # Write file in chunks, checking for shutdown between chunks
-            dest_path = Path(destination)
+            downloaded_bytes = 0
             with open(destination, "wb") as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if shutdown_event and shutdown_event.is_set():
@@ -259,6 +268,16 @@ class CanvasClient:
                         dest_path.unlink(missing_ok=True)
                         return False
                     if chunk:
+                        downloaded_bytes += len(chunk)
+                        if max_bytes is not None and downloaded_bytes > max_bytes:
+                            logger.error(
+                                f"Download exceeded max size ({max_bytes} bytes), "
+                                f"aborting: {destination}"
+                            )
+                            response.close()
+                            f.close()
+                            dest_path.unlink(missing_ok=True)
+                            return False
                         f.write(chunk)
 
             return True
@@ -266,7 +285,7 @@ class CanvasClient:
         except Exception as e:
             logger.error(f"Error downloading file from {file_url}: {e}")
             try:
-                Path(destination).unlink(missing_ok=True)
+                dest_path.unlink(missing_ok=True)
             except OSError:
                 pass
             return False
