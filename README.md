@@ -2,6 +2,14 @@
 
 Lazy to click buttons? Me too.
 
+New active courses appear in your digest but are never selected automatically.
+Run `python src/main.py --add-courses` in a terminal to choose which to add;
+this updates the whitelist without downloading files or sending mail. Courses
+you leave unselected continue to appear in later digests. For cloud runs, update
+the `CONFIG_YAML` secret with the resulting whitelist. Scheduled runs remain
+non-interactive; course selection and config export reject `--non-interactive`
+or piped stdin instead of waiting for input.
+
 Downloads course files from Canvas, skips the junk (videos, 500MB lecture recordings, textbooks), and emails you a daily digest of what's new. Runs on your laptop **or** in the cloud so your iPad gets your files while you nap.
 
 [![Tests](https://github.com/anselmlong/canvas-scraper/actions/workflows/test.yml/badge.svg)](https://github.com/anselmlong/canvas-scraper/actions/workflows/test.yml)

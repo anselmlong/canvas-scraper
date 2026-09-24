@@ -489,8 +489,10 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
     new_courses = course_manager.detect_new_courses(all_courses)
 
     if new_courses:
-        logger.info(f"Detected {len(new_courses)} new courses")
-        # TODO: Handle new courses (interactive vs cron mode)
+        logger.info(
+            "Detected %s unselected courses. Run --add-courses from a terminal "
+            "to choose which to sync; the whitelist is unchanged.", len(new_courses)
+        )
 
     # Get synced courses
     synced_courses = course_manager.get_synced_courses(all_courses)
@@ -967,7 +969,26 @@ def main():
 
     # Export config to stdout (for GitHub Actions CONFIG_YAML secret)
     if args.export_config:
+        if args.non_interactive or not sys.stdin.isatty():
+            logger.error("Config export needs an interactive terminal.")
+            sys.exit(1)
         _handle_export_config()
+        return
+
+    if args.add_courses:
+        if args.non_interactive or not sys.stdin.isatty():
+            logger.error("Adding courses needs an interactive terminal.")
+            sys.exit(1)
+        if not (config.canvas_api_token and config.canvas_base_url):
+            logger.error("Canvas API token/base URL not configured. Run --setup first.")
+            sys.exit(1)
+        manager = CourseManager(CanvasClient(config.canvas_base_url, config.canvas_api_token), config)
+        available = manager.detect_new_courses(manager.get_active_courses())
+        if not available:
+            logger.info("No unselected active courses found.")
+            return
+        selected = manager.interactive_course_selection(available)
+        manager.add_courses_to_config(selected)
         return
 
     # Check if configured
