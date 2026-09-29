@@ -46,9 +46,10 @@
   :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
   footer :focus-visible, .cmd :focus-visible { outline-color: var(--marigold); }
 
-  .display { font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 800; }
+  .display { font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 800; text-wrap: balance; }
+  p { text-wrap: pretty; }
 
-  code, .mono {
+  code {
     font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     font-size: 0.92em;
   }
@@ -132,12 +133,11 @@
     background: var(--ink);
     color: var(--paper);
     border-radius: 10px;
-    padding: 0.9rem 1.2rem;
+    padding: 0.75rem 0.75rem 0.75rem 1.2rem;
     max-width: 100%;
-    flex-wrap: wrap;
   }
 
-  .cmd code { white-space: nowrap; overflow-x: auto; max-width: 100%; display: block; scrollbar-width: none; }
+  .cmd code { white-space: nowrap; overflow-x: auto; min-width: 0; display: block; scrollbar-width: none; }
   .cmd code::before { content: '$ '; opacity: 0.5; }
 
   .cmd button {
@@ -151,8 +151,11 @@
     min-height: 2.25rem;
     padding: 0.35rem 0.9rem;
     cursor: pointer;
+    flex-shrink: 0;
+    transition: background-color 0.2s var(--ease), transform 0.15s var(--ease);
   }
   .cmd button:hover { background: oklch(0.87 0.135 88 / 0.12); }
+  .cmd button:active { transform: scale(0.96); }
 
   .hero-aside {
     margin-top: 1.1rem;
@@ -164,8 +167,9 @@
     margin-top: 1.8rem;
     font-size: 0.95rem;
   }
+  .hero-alt strong { font-weight: 500; }
   .hero-alt a { color: var(--ink); font-weight: 500; }
-  .hero-alt a:hover { color: var(--paper); }
+  .hero-alt a:hover { text-decoration-thickness: 3px; }
 
   .hero > :not(.sun) { position: relative; z-index: 1; }
 
@@ -230,6 +234,7 @@
   }
 
   .digest-intro { max-width: 38ch; }
+  .digest-intro .section-head { margin-bottom: 1.5rem; }
   .digest-intro p + p { margin-top: 1rem; }
 
   .email {
@@ -273,7 +278,7 @@
   }
   .email-body li .size { color: var(--ink-soft); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .email-body li.skipped { color: var(--ink-soft); }
-  .email-body li.skipped .why { font-size: 0.82rem; }
+  .email-body li.skipped .why { font-size: 0.82rem; white-space: nowrap; }
 
   .email-due {
     margin-top: 1.2rem;
@@ -321,6 +326,7 @@
   .spec {
     border-top: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
+    margin-top: clamp(2.5rem, 5vw, 4rem);
     padding-top: 2.2rem;
     padding-bottom: 2.2rem;
     display: flex;
@@ -373,6 +379,9 @@
   }
 
   @media (max-width: 720px) {
+    .cmd { gap: 0.75rem; }
+    .cmd code { font-size: 0.8rem; }
+    .cloud-card { padding: 1.4rem 1.3rem; }
     .digest-wrap, .sorter { grid-template-columns: 1fr; }
     .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
     .email { rotate: 0deg; }
@@ -381,7 +390,7 @@
 
   /* ── Cloud pitch card ──────────────────────────── */
 
-  .cloud-pitch { margin-top: 2rem; }
+  .cloud-pitch { margin-top: clamp(2.5rem, 5vw, 3.5rem); }
 
   .cloud-card {
     background: var(--paper-warm);
@@ -390,22 +399,25 @@
     padding: 1.8rem 2rem;
     max-width: 42rem;
   }
-  .cloud-card h3 { font-size: 1.2rem; font-weight: 500; margin-bottom: 0.6rem; }
+  .cloud-card h3 { font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 800; font-size: 1.35rem; letter-spacing: -0.01em; line-height: 1.2; margin-bottom: 0.6rem; }
   .cloud-card p { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.6; }
   .cloud-card a { color: var(--amber); }
   .cloud-card a:hover { color: var(--ink); }
-  .cloud-cta { margin-top: 0.8rem; }
-  .btn {
-    display: inline-block;
+  .cloud-cta { margin-top: 1.2rem; }
+  .cloud-card .btn {
+    display: inline-flex;
+    align-items: center;
+    min-height: 2.75rem;
     font-weight: 500;
     background: var(--ink);
-    color: var(--paper) !important;
+    color: var(--paper);
     padding: 0.5rem 1.2rem;
     border-radius: 8px;
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: 0.95rem;
+    transition: background-color 0.2s var(--ease);
   }
-  .btn:hover { background: var(--ink-soft) !important; }
+  .cloud-card .btn:hover { background: var(--ink-soft); color: var(--paper); }
 </style>
 <script>document.documentElement.classList.add('js');</script>
 </head>
@@ -435,7 +447,7 @@
   <p class="hero-aside">Python 3.9+, a Canvas API token, and ten minutes. That's the whole setup.</p>
 
   <div class="hero-alt">
-    <p><span class="mono">📱 Using an iPad?</span> Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — zero local setup.</p>
+    <p>📱 <strong>Using an iPad?</strong> Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — zero local setup.</p>
   </div>
 </header>
 
@@ -465,7 +477,7 @@
     </div>
   </div>
 
-  <div class="cloud-pitch reveal">
+  <div class="cloud-pitch">
     <div class="cloud-card">
       <h3>📱 No computer? No problem.</h3>
       <p>Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — click, add 4 secrets, enable Actions. The scraper runs on GitHub's servers and pushes files to Google Drive / Dropbox. Your iPad picks them up from there.</p>
@@ -529,7 +541,7 @@
   </div>
   <p class="sorter-note">Size limits and filters are yours to change in one YAML file. The defaults are just well-rested.</p>
 
-  <div class="spec" style="margin-top: clamp(2.5rem, 5vw, 4rem);">
+  <div class="spec">
     <span>retries failed downloads, exponential backoff</span>
     <span>SQLite tracks every file</span>
     <span>fuzzy course matching ("cs" finds CS2105)</span>
