@@ -288,6 +288,15 @@
     font-weight: 500;
   }
 
+  /* The noon email lands on the desk: drops in a touch crooked, settles at its resting tilt. */
+  .js .digest-section .email { opacity: 0; }
+  .js .digest-section.in .email { animation: land 0.9s var(--ease) 0.25s both; }
+
+  @keyframes land {
+    from { opacity: 0; translate: 0 -1.5rem; rotate: -2.5deg; box-shadow: 0 40px 60px -30px oklch(0.4 0.06 70 / 0.35); }
+    to   { opacity: 1; translate: 0 0; rotate: 0.6deg; }
+  }
+
   /* ── Grabs vs skips ───────────────────────────────── */
 
   .sorter {
@@ -376,6 +385,7 @@
   @media (prefers-reduced-motion: reduce) {
     .js .reveal { opacity: 1; transform: none; transition: none; }
     .zzz { animation: none; }
+    .js .digest-section .email, .js .digest-section.in .email { opacity: 1; animation: none; }
   }
 
   @media (max-width: 720px) {
@@ -385,6 +395,7 @@
     .digest-wrap, .sorter { grid-template-columns: 1fr; }
     .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
     .email { rotate: 0deg; }
+    @keyframes land { from { opacity: 0; translate: 0 -1rem; } to { opacity: 1; translate: 0 0; } }
     .sun { width: 14rem; height: 14rem; right: -6rem; bottom: -9rem; }
   }
 
@@ -566,7 +577,7 @@
     const done = (label, msg) => {
       btn.textContent = label;
       status.textContent = msg;
-      setTimeout(() => { btn.textContent = 'copy'; status.textContent = ''; }, 1600);
+      setTimeout(() => { btn.textContent = 'copy'; status.textContent = ''; }, 2200);
     };
     const selectIt = () => {
       const range = document.createRange();
@@ -578,7 +589,7 @@
     };
     if (!navigator.clipboard) { selectIt(); return; }
     navigator.clipboard.writeText(code.textContent)
-      .then(() => done('copied', 'Setup command copied.'))
+      .then(() => done('copied. nap time.', 'Setup command copied.'))
       .catch(selectIt);
   }
 
