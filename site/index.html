@@ -11,7 +11,10 @@
 <meta name="theme-color" content="#f2c14e">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23f2c14e'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://api.fontshare.com">
-<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800,500&f[]=general-sans@500,400&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://cdn.fontshare.com" crossorigin>
+<!-- One family per request: Fontshare's combined request silently swaps General Sans for Satoshi. -->
+<link href="https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500&display=swap" rel="stylesheet">
 <style>
   :root {
     --marigold:      oklch(0.87 0.135 88);
@@ -40,12 +43,17 @@
   a { color: var(--amber); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
   a:hover { color: var(--ink); }
 
+  :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; border-radius: 2px; }
+  footer :focus-visible, .cmd :focus-visible { outline-color: var(--marigold); }
+
   .display { font-family: 'Cabinet Grotesk', system-ui, sans-serif; font-weight: 800; }
 
   code, .mono {
     font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     font-size: 0.92em;
   }
+
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
 
   /* ── Hero: the marigold field ─────────────────────── */
 
@@ -86,7 +94,8 @@
   .hero h1 .same {
     display: block;
     color: var(--paper);
-    text-shadow: 0 1px 0 oklch(0.6 0.12 75 / 0.35);
+    /* Paper on marigold alone is ~1.4:1; the amber edge carries the letterforms. */
+    text-shadow: 0.025em 0.035em 0 var(--amber);
   }
 
   .zzz {
@@ -95,6 +104,7 @@
     letter-spacing: 0.3em;
     vertical-align: super;
     color: var(--ink-soft);
+    text-shadow: none;
     animation: drift 4s var(--ease) infinite;
   }
 
@@ -138,7 +148,8 @@
     color: var(--marigold);
     border: 1px solid oklch(0.87 0.135 88 / 0.45);
     border-radius: 6px;
-    padding: 0.25rem 0.7rem;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.9rem;
     cursor: pointer;
   }
   .cmd button:hover { background: oklch(0.87 0.135 88 / 0.12); }
@@ -155,6 +166,8 @@
   }
   .hero-alt a { color: var(--ink); font-weight: 500; }
   .hero-alt a:hover { color: var(--paper); }
+
+  .hero > :not(.sun) { position: relative; z-index: 1; }
 
   .sun {
     position: absolute;
@@ -363,6 +376,7 @@
     .digest-wrap, .sorter { grid-template-columns: 1fr; }
     .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
     .email { rotate: 0deg; }
+    .sun { width: 14rem; height: 14rem; right: -6rem; bottom: -9rem; }
   }
 
   /* ── Cloud pitch card ──────────────────────────── */
@@ -376,7 +390,7 @@
     padding: 1.8rem 2rem;
     max-width: 42rem;
   }
-  .cloud-card h3 { font-size: 1.2rem; font-weight: 600; margin-bottom: 0.6rem; }
+  .cloud-card h3 { font-size: 1.2rem; font-weight: 500; margin-bottom: 0.6rem; }
   .cloud-card p { color: var(--ink-soft); font-size: 0.95rem; line-height: 1.6; }
   .cloud-card a { color: var(--amber); }
   .cloud-card a:hover { color: var(--ink); }
@@ -415,7 +429,8 @@
 
   <div class="cmd">
     <code id="setup-cmd">python src/main.py --setup</code>
-    <button type="button" onclick="copyCmd(this)">copy</button>
+    <button type="button" onclick="copyCmd(this)" aria-describedby="setup-cmd">copy</button>
+    <span class="sr-only" role="status" id="copy-status"></span>
   </div>
   <p class="hero-aside">Python 3.9+, a Canvas API token, and ten minutes. That's the whole setup.</p>
 
@@ -534,10 +549,25 @@
 
 <script>
   function copyCmd(btn) {
-    navigator.clipboard.writeText(document.getElementById('setup-cmd').textContent).then(() => {
-      btn.textContent = 'copied';
-      setTimeout(() => { btn.textContent = 'copy'; }, 1600);
-    });
+    const code = document.getElementById('setup-cmd');
+    const status = document.getElementById('copy-status');
+    const done = (label, msg) => {
+      btn.textContent = label;
+      status.textContent = msg;
+      setTimeout(() => { btn.textContent = 'copy'; status.textContent = ''; }, 1600);
+    };
+    const selectIt = () => {
+      const range = document.createRange();
+      range.selectNodeContents(code);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      done('selected', 'Command selected. Press Ctrl+C to copy.');
+    };
+    if (!navigator.clipboard) { selectIt(); return; }
+    navigator.clipboard.writeText(code.textContent)
+      .then(() => done('copied', 'Setup command copied.'))
+      .catch(selectIt);
   }
 
   const io = new IntersectionObserver((entries) => {
