@@ -322,8 +322,8 @@
     border-top: 1px solid var(--line);
     max-width: 38ch;
   }
-  .sorter .skips li { color: var(--ink-soft); }
-  .sorter .skips li s { text-decoration-color: oklch(0.6 0.1 70 / 0.6); }
+  .sorter .skips s { text-decoration-color: var(--amber); text-decoration-thickness: 1.5px; }
+  .sorter .skips .why { display: block; margin-top: 0.1rem; font-size: 0.92rem; color: var(--ink-soft); }
 
   .sorter-note {
     margin-top: 2rem;
@@ -340,9 +340,9 @@
     margin-top: clamp(2.5rem, 5vw, 4rem);
     padding-top: 2.2rem;
     padding-bottom: 2.2rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    gap: 0.7rem 2.5rem;
     font-size: 0.92rem;
     color: var(--ink-soft);
     list-style: none;
@@ -395,17 +395,6 @@
     .js .digest-section .email, .js .digest-section.in .email { opacity: 1; animation: none; }
   }
 
-  @media (max-width: 720px) {
-    .cmd { gap: 0.75rem; }
-    .cmd code { font-size: 0.8rem; }
-    .cloud-card { padding: 1.4rem 1.3rem; }
-    .digest-wrap, .sorter { grid-template-columns: 1fr; }
-    .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
-    .email { rotate: 0deg; }
-    @keyframes land { from { opacity: 0; translate: 0 -1rem; } to { opacity: 1; translate: 0 0; } }
-    .sun { width: 14rem; height: 14rem; right: -6rem; bottom: -9rem; }
-  }
-
   /* ── Cloud pitch card ──────────────────────────── */
 
   .cloud-pitch { margin-top: clamp(2.5rem, 5vw, 3.5rem); }
@@ -436,6 +425,17 @@
     transition: background-color 0.2s var(--ease);
   }
   .cloud-card .btn:hover { background: var(--ink-soft); color: var(--paper); }
+
+  @media (max-width: 720px) {
+    .cmd { gap: 0.75rem; }
+    .cmd code { font-size: 0.8rem; }
+    .cloud-card { padding: 1.4rem 1.3rem; }
+    .digest-wrap, .sorter { grid-template-columns: 1fr; }
+    .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
+    .email { rotate: 0deg; }
+    @keyframes land { from { opacity: 0; translate: 0 -1rem; } to { opacity: 1; translate: 0 0; } }
+    .sun { width: 14rem; height: 14rem; right: -6rem; bottom: -9rem; }
+  }
 </style>
 <script>document.documentElement.classList.add('js');</script>
 </head>
