@@ -536,9 +536,11 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                 canvas_modified = file_metadata["modified_at"]
                 local_download = datetime.fromisoformat(existing_file["download_date"])
 
-                # Ensure both datetimes are timezone-aware for comparison
+                # download_date is stored as naive *local* time (datetime.now()),
+                # so convert from local time; tagging it as UTC would push it
+                # hours into the future east of UTC and hide Canvas updates
                 if local_download.tzinfo is None:
-                    local_download = local_download.replace(tzinfo=timezone.utc)
+                    local_download = local_download.astimezone(timezone.utc)
 
                 if canvas_modified <= local_download:
                     # File is up to date, skip
