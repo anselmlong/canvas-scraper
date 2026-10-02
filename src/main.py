@@ -979,20 +979,44 @@ def main():
         _handle_export_config()
         return
 
-    if args.add_courses:
+    if args.add_courses or args.reselect_courses or args.remove_courses:
         if args.non_interactive or not sys.stdin.isatty():
-            logger.error("Adding courses needs an interactive terminal.")
+            logger.error("Changing the course list needs an interactive terminal.")
             sys.exit(1)
         if not (config.canvas_api_token and config.canvas_base_url):
             logger.error("Canvas API token/base URL not configured. Run --setup first.")
             sys.exit(1)
         manager = CourseManager(CanvasClient(config.canvas_base_url, config.canvas_api_token), config)
-        available = manager.detect_new_courses(manager.get_active_courses())
-        if not available:
-            logger.info("No unselected active courses found.")
-            return
-        selected = manager.interactive_course_selection(available)
-        manager.add_courses_to_config(selected)
+        all_courses = manager.get_active_courses()
+
+        if args.add_courses:
+            available = manager.detect_new_courses(all_courses)
+            if not available:
+                logger.info("No unselected active courses found.")
+                return
+            selected = manager.interactive_course_selection(available)
+            manager.add_courses_to_config(selected)
+        elif args.reselect_courses:
+            if not all_courses:
+                logger.info("No active courses found.")
+                return
+            selected = manager.interactive_course_selection(all_courses)
+            config.set("courses.whitelist", [c["id"] for c in selected])
+            config.save()
+            logger.info(f"Sync list replaced with {len(selected)} courses")
+        else:
+            synced = manager.get_synced_courses(all_courses)
+            if not synced:
+                logger.info("No active courses in the sync list to remove.")
+                return
+            selected = manager.interactive_course_selection(
+                synced, prompt_message="Enter courses to remove (comma-separated) or 'all': "
+            )
+            # Match on str so hand-edited whitelists with quoted IDs still work
+            remove = {str(c["id"]) for c in selected}
+            manager.remove_courses_from_config(
+                [cid for cid in config.get("courses.whitelist", []) if str(cid) in remove]
+            )
         return
 
     # Check if configured
