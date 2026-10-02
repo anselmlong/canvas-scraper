@@ -678,38 +678,40 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                     submission_types=assign["submission_types"],
                     canvas_url=assign["canvas_url"],
                 )
-
-                # Collect attachment download tasks
-                for attachment in assign.get("attachments", []):
-                    if not attachment.get("url"):
-                        continue
-
-                    att_id = str(attachment["id"])
-                    if metadata_db.get_downloaded_file(att_id):
-                        continue
-
-                    att_metadata = {
-                        "id": attachment["id"],
-                        "name": attachment["name"],
-                        "size": attachment["size"],
-                    }
-                    should_download, reason = filter_engine.should_download(att_metadata)
-
-                    if should_download:
-                        destination = file_organizer.get_file_path(
-                            course_dir, "Assignments", attachment["name"]
-                        )
-                        attachment_tasks.append(DownloadTask(
-                            file_id=att_id,
-                            file_url=attachment["url"],
-                            destination=destination,
-                            filename=attachment["name"],
-                            size_bytes=attachment["size"],
-                            course_name=course_name_full,
-                            is_update=False,
-                        ))
             else:
                 metadata_db.update_assignment_seen(assign_id)
+
+            # Collect attachment download tasks for every upcoming assignment,
+            # not just newly seen ones, so an attachment whose download failed
+            # (or was skipped by --dry-run) is retried on the next run
+            for attachment in assign.get("attachments", []):
+                if not attachment.get("url"):
+                    continue
+
+                att_id = str(attachment["id"])
+                if metadata_db.get_downloaded_file(att_id):
+                    continue
+
+                att_metadata = {
+                    "id": attachment["id"],
+                    "name": attachment["name"],
+                    "size": attachment["size"],
+                }
+                should_download, reason = filter_engine.should_download(att_metadata)
+
+                if should_download:
+                    destination = file_organizer.get_file_path(
+                        course_dir, "Assignments", attachment["name"]
+                    )
+                    attachment_tasks.append(DownloadTask(
+                        file_id=att_id,
+                        file_url=attachment["url"],
+                        destination=destination,
+                        filename=attachment["name"],
+                        size_bytes=attachment["size"],
+                        course_name=course_name_full,
+                        is_update=False,
+                    ))
 
         # Download all attachment tasks in one parallel batch
         if attachment_tasks and not dry_run:

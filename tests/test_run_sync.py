@@ -85,3 +85,24 @@ def test_file_updated_after_download_is_refetched_east_of_utc(tmp_path, singapor
 
     assert [t.file_id for t in queued] == ["10"]
     assert queued[0].is_update
+
+
+def test_attachment_of_known_assignment_is_retried_until_downloaded(tmp_path):
+    assignment = {
+        "id": 7, "name": "PS1", "description": "", "points_possible": 10,
+        "submission_types": [], "canvas_url": "c",
+        "due_at": datetime(2099, 1, 1, tzinfo=timezone.utc),
+        "attachments": [{"id": 20, "name": "ps1.pdf", "size": 100, "url": "u"}],
+    }
+    # A previous run (or --dry-run) recorded the assignment, but the
+    # attachment never made it to disk
+    db = MetadataDB(tmp_path / "data" / "scraper.db")
+    db.add_assignment(
+        assignment_id="7", course_id="1", course_name="CS101", name="PS1",
+        description="", due_at=assignment["due_at"], points_possible=10,
+        submission_types=[], canvas_url="c",
+    )
+
+    assert [t.file_id for t in _run(tmp_path, assignments=[assignment])] == ["20"]
+    # Once downloaded it is not fetched again
+    assert _run(tmp_path, assignments=[assignment]) == []
