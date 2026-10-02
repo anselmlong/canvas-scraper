@@ -1,11 +1,5 @@
 # TODOS
 
-## CLI
-
-### Implement --reselect-courses, --add-courses, --remove-courses
-**Priority:** P1
-The flags are defined in `src/main.py` argparse and advertised in the email digest template (`templates/email_report.html`), but never handled in `main()` — they silently fall through to a full sync. README/QUICKSTART no longer recommend them; the email template still does. `--list-courses` was implemented in v1.3.0.0; these three still need wiring to `CourseManager.interactive_course_selection` / `add_courses_to_config`. Noticed on branch feat/cloud-sync-and-installer.
-
 ## Cloud Sync
 
 ### Digest email sent before rclone upload completes
@@ -20,3 +14,6 @@ A `C:/Users/...` path pasted into the cloud `CONFIG_YAML` resolves relative to t
 
 ### Cloud sync via GitHub Actions + rclone, one-click installer, --non-interactive flag
 **Completed:** v1.3.0.0 (2026-06-10)
+
+### --reselect-courses and --remove-courses
+**Completed:** 2026-10-02 (previously fell through to a full sync)
