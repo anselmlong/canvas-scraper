@@ -322,7 +322,18 @@
     border-top: 1px solid var(--line);
     max-width: 38ch;
   }
-  .sorter .skips s { text-decoration-color: var(--amber); text-decoration-thickness: 1.5px; }
+  /* Skips get crossed off one by one as the list comes into view, like a to-don't list. */
+  .sorter .skips s {
+    text-decoration: none;
+    background: linear-gradient(var(--amber), var(--amber)) no-repeat 0 58% / 100% 1.5px;
+    transition: background-size 0.45s var(--ease);
+  }
+  .js .sorter-section:not(.in) .skips s { background-size: 0% 1.5px; }
+  .sorter .skips li:nth-child(1) s { transition-delay: 0.6s; }
+  .sorter .skips li:nth-child(2) s { transition-delay: 0.8s; }
+  .sorter .skips li:nth-child(3) s { transition-delay: 1s; }
+  .sorter .skips li:nth-child(4) s { transition-delay: 1.2s; }
+  @media (forced-colors: active) { .sorter .skips s { text-decoration: line-through; } }
   .sorter .skips .why { display: block; margin-top: 0.1rem; font-size: 0.92rem; color: var(--ink-soft); }
 
   .sorter-note {
@@ -387,12 +398,15 @@
 
   @media print {
     .js .reveal, .js .digest-section .email { opacity: 1; transform: none; animation: none; }
+    .js .sorter-section:not(.in) .skips s { background-size: 100% 1.5px; }
   }
 
   @media (prefers-reduced-motion: reduce) {
     .js .reveal { opacity: 1; transform: none; transition: none; }
     .zzz { animation: none; }
     .js .digest-section .email, .js .digest-section.in .email { opacity: 1; animation: none; }
+    .js .sorter-section:not(.in) .skips s { background-size: 100% 1.5px; }
+    .sorter .skips s { transition: none; }
   }
 
   /* ── Cloud pitch card ──────────────────────────── */
@@ -536,7 +550,7 @@
   </div>
 </section>
 
-<section class="reveal">
+<section class="sorter-section reveal">
   <h2 class="section-head display">It has opinions about your storage</h2>
   <div class="sorter">
     <div class="grabs">
