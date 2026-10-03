@@ -79,11 +79,13 @@
     color: var(--ink);
     font-weight: 500;
     font-size: 0.95rem;
-    text-decoration: none;
-    border-bottom: 1.5px solid var(--ink);
-    padding-bottom: 1px;
+    text-decoration: underline 1.5px;
+    text-underline-offset: 5px;
+    display: inline-block;
+    padding: 0.7rem 0;
+    margin: -0.7rem 0;
   }
-  .hero-top a:hover { border-bottom-color: transparent; }
+  .hero-top a:hover { text-decoration-color: transparent; }
 
   .hero h1 {
     font-size: clamp(2.9rem, 9.5vw, 7.5rem);
@@ -133,7 +135,7 @@
     background: var(--ink);
     color: var(--paper);
     border-radius: 10px;
-    padding: 0.75rem 0.75rem 0.75rem 1.2rem;
+    padding: 0.5rem 0.5rem 0.5rem 1.2rem;
     max-width: 100%;
   }
 
@@ -148,7 +150,7 @@
     color: var(--marigold);
     border: 1px solid oklch(0.87 0.135 88 / 0.45);
     border-radius: 6px;
-    min-height: 2.25rem;
+    min-height: 2.75rem;
     padding: 0.35rem 0.9rem;
     cursor: pointer;
     flex-shrink: 0;
@@ -320,8 +322,19 @@
     border-top: 1px solid var(--line);
     max-width: 38ch;
   }
-  .sorter .skips li { color: var(--ink-soft); }
-  .sorter .skips li s { text-decoration-color: oklch(0.6 0.1 70 / 0.6); }
+  /* Skips get crossed off one by one as the list comes into view, like a to-don't list. */
+  .sorter .skips s {
+    text-decoration: none;
+    background: linear-gradient(var(--amber), var(--amber)) no-repeat 0 58% / 100% 1.5px;
+    transition: background-size 0.45s var(--ease);
+  }
+  .js .sorter-section:not(.in) .skips s { background-size: 0% 1.5px; }
+  .sorter .skips li:nth-child(1) s { transition-delay: 0.6s; }
+  .sorter .skips li:nth-child(2) s { transition-delay: 0.8s; }
+  .sorter .skips li:nth-child(3) s { transition-delay: 1s; }
+  .sorter .skips li:nth-child(4) s { transition-delay: 1.2s; }
+  @media (forced-colors: active) { .sorter .skips s { text-decoration: line-through; } }
+  .sorter .skips .why { display: block; margin-top: 0.1rem; font-size: 0.92rem; color: var(--ink-soft); }
 
   .sorter-note {
     margin-top: 2rem;
@@ -338,13 +351,14 @@
     margin-top: clamp(2.5rem, 5vw, 4rem);
     padding-top: 2.2rem;
     padding-bottom: 2.2rem;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.6rem 2.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+    gap: 0.7rem 2.5rem;
     font-size: 0.92rem;
     color: var(--ink-soft);
+    list-style: none;
   }
-  .spec span::before { content: '· '; color: var(--marigold-deep); font-weight: 800; }
+  .spec li::before { content: '· '; color: var(--marigold-deep); font-weight: 800; }
 
   /* ── Footer ───────────────────────────────────────── */
 
@@ -382,21 +396,17 @@
   .js .reveal { opacity: 0; transform: translateY(14px); transition: opacity 0.8s var(--ease), transform 0.8s var(--ease); }
   .js .reveal.in { opacity: 1; transform: none; }
 
+  @media print {
+    .js .reveal, .js .digest-section .email { opacity: 1; transform: none; animation: none; }
+    .js .sorter-section:not(.in) .skips s { background-size: 100% 1.5px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     .js .reveal { opacity: 1; transform: none; transition: none; }
     .zzz { animation: none; }
     .js .digest-section .email, .js .digest-section.in .email { opacity: 1; animation: none; }
-  }
-
-  @media (max-width: 720px) {
-    .cmd { gap: 0.75rem; }
-    .cmd code { font-size: 0.8rem; }
-    .cloud-card { padding: 1.4rem 1.3rem; }
-    .digest-wrap, .sorter { grid-template-columns: 1fr; }
-    .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
-    .email { rotate: 0deg; }
-    @keyframes land { from { opacity: 0; translate: 0 -1rem; } to { opacity: 1; translate: 0 0; } }
-    .sun { width: 14rem; height: 14rem; right: -6rem; bottom: -9rem; }
+    .js .sorter-section:not(.in) .skips s { background-size: 100% 1.5px; }
+    .sorter .skips s { transition: none; }
   }
 
   /* ── Cloud pitch card ──────────────────────────── */
@@ -429,6 +439,17 @@
     transition: background-color 0.2s var(--ease);
   }
   .cloud-card .btn:hover { background: var(--ink-soft); color: var(--paper); }
+
+  @media (max-width: 720px) {
+    .cmd { gap: 0.75rem; }
+    .cmd code { font-size: 0.8rem; }
+    .cloud-card { padding: 1.4rem 1.3rem; }
+    .digest-wrap, .sorter { grid-template-columns: 1fr; }
+    .day-row { grid-template-columns: 1fr; gap: 0.2rem; }
+    .email { rotate: 0deg; }
+    @keyframes land { from { opacity: 0; translate: 0 -1rem; } to { opacity: 1; translate: 0 0; } }
+    .sun { width: 14rem; height: 14rem; right: -6rem; bottom: -9rem; }
+  }
 </style>
 <script>document.documentElement.classList.add('js');</script>
 </head>
@@ -458,10 +479,11 @@
   <p class="hero-aside">Python 3.9+, a Canvas API token, and ten minutes. That's the whole setup.</p>
 
   <div class="hero-alt">
-    <p>📱 <strong>Using an iPad?</strong> Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — zero local setup.</p>
+    <p><span aria-hidden="true">📱</span> <strong>Using an iPad?</strong> Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — zero local setup.</p>
   </div>
 </header>
 
+<main>
 <section class="reveal">
   <h2 class="section-head display">Twenty seconds of doing nothing</h2>
   <video class="launch" src="launch.mp4" poster="launch.jpg" controls playsinline preload="none"></video>
@@ -490,7 +512,7 @@
 
   <div class="cloud-pitch">
     <div class="cloud-card">
-      <h3>📱 No computer? No problem.</h3>
+      <h3><span aria-hidden="true">📱</span> No computer? No problem.</h3>
       <p>Use the <a href="https://github.com/anselmlong/canvas-scraper">GitHub template</a> — click, add 4 secrets, enable Actions. The scraper runs on GitHub's servers and pushes files to Google Drive / Dropbox. Your iPad picks them up from there.</p>
       <p class="cloud-cta"><a href="https://github.com/anselmlong/canvas-scraper" class="btn">Use the template →</a></p>
     </div>
@@ -528,7 +550,7 @@
   </div>
 </section>
 
-<section class="reveal">
+<section class="sorter-section reveal">
   <h2 class="section-head display">It has opinions about your storage</h2>
   <div class="sorter">
     <div class="grabs">
@@ -543,23 +565,24 @@
     <div class="skips">
       <h3>Skips</h3>
       <ul>
-        <li><s>Lecture recordings</s> watch at 2x on Canvas like everyone else</li>
-        <li><s>Textbooks</s> 92 MB of good intentions</li>
-        <li><s>Files over 50 MB</s> your SSD says thank you</li>
-        <li><s>Duplicates</s> it remembers what it already took</li>
+        <li><s>Lecture recordings</s><span class="sr-only">: </span> <span class="why">watch at 2x on Canvas like everyone else</span></li>
+        <li><s>Textbooks</s><span class="sr-only">: </span> <span class="why">92 MB of good intentions</span></li>
+        <li><s>Files over 50 MB</s><span class="sr-only">: </span> <span class="why">your SSD says thank you</span></li>
+        <li><s>Duplicates</s><span class="sr-only">: </span> <span class="why">it remembers what it already took</span></li>
       </ul>
     </div>
   </div>
   <p class="sorter-note">Size limits and filters are yours to change in one YAML file. The defaults are just well-rested.</p>
 
-  <div class="spec">
-    <span>retries failed downloads, exponential backoff</span>
-    <span>SQLite tracks every file</span>
-    <span>fuzzy course matching ("cs" finds CS2105)</span>
-    <span>cron and Task Scheduler setup included</span>
-    <span>shuts down gracefully, no hung WSL</span>
-  </div>
+  <ul class="spec">
+    <li>retries failed downloads, exponential backoff</li>
+    <li>SQLite tracks every file</li>
+    <li>fuzzy course matching ("cs" finds CS2105)</li>
+    <li>cron and Task Scheduler setup included</li>
+    <li>shuts down gracefully, no hung WSL</li>
+  </ul>
 </section>
+</main>
 
 <footer>
   <p class="star display reveal">Saved you a click? <a href="https://github.com/anselmlong/canvas-scraper">Drop a star.</a></p>
@@ -600,9 +623,12 @@
   }, { threshold: 0.15 });
   document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
 
-  // Safety net: nothing stays hidden, observer or not. Lazy, not broken.
+  // Safety net: nothing on screen stays hidden, observer or not. Lazy, not broken.
+  // Below-the-fold sections keep waiting so their entrances still play when scrolled to.
   setTimeout(() => {
-    document.querySelectorAll('.reveal:not(.in)').forEach((el) => el.classList.add('in'));
+    document.querySelectorAll('.reveal:not(.in)').forEach((el) => {
+      if (el.getBoundingClientRect().top < innerHeight) el.classList.add('in');
+    });
   }, 1800);
 </script>
 
