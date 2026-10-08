@@ -536,9 +536,11 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                 canvas_modified = file_metadata["modified_at"]
                 local_download = datetime.fromisoformat(existing_file["download_date"])
 
-                # Ensure both datetimes are timezone-aware for comparison
+                # download_date is stored as naive *local* time (datetime.now()),
+                # so convert from local time; tagging it as UTC would push it
+                # hours into the future east of UTC and hide Canvas updates
                 if local_download.tzinfo is None:
-                    local_download = local_download.replace(tzinfo=timezone.utc)
+                    local_download = local_download.astimezone(timezone.utc)
 
                 if canvas_modified <= local_download:
                     # File is up to date, skip
@@ -676,38 +678,40 @@ def run_sync(config: Config, dry_run: bool = False, send_email: bool = True):
                     submission_types=assign["submission_types"],
                     canvas_url=assign["canvas_url"],
                 )
-
-                # Collect attachment download tasks
-                for attachment in assign.get("attachments", []):
-                    if not attachment.get("url"):
-                        continue
-
-                    att_id = str(attachment["id"])
-                    if metadata_db.get_downloaded_file(att_id):
-                        continue
-
-                    att_metadata = {
-                        "id": attachment["id"],
-                        "name": attachment["name"],
-                        "size": attachment["size"],
-                    }
-                    should_download, reason = filter_engine.should_download(att_metadata)
-
-                    if should_download:
-                        destination = file_organizer.get_file_path(
-                            course_dir, "Assignments", attachment["name"]
-                        )
-                        attachment_tasks.append(DownloadTask(
-                            file_id=att_id,
-                            file_url=attachment["url"],
-                            destination=destination,
-                            filename=attachment["name"],
-                            size_bytes=attachment["size"],
-                            course_name=course_name_full,
-                            is_update=False,
-                        ))
             else:
                 metadata_db.update_assignment_seen(assign_id)
+
+            # Collect attachment download tasks for every upcoming assignment,
+            # not just newly seen ones, so an attachment whose download failed
+            # (or was skipped by --dry-run) is retried on the next run
+            for attachment in assign.get("attachments", []):
+                if not attachment.get("url"):
+                    continue
+
+                att_id = str(attachment["id"])
+                if metadata_db.get_downloaded_file(att_id):
+                    continue
+
+                att_metadata = {
+                    "id": attachment["id"],
+                    "name": attachment["name"],
+                    "size": attachment["size"],
+                }
+                should_download, reason = filter_engine.should_download(att_metadata)
+
+                if should_download:
+                    destination = file_organizer.get_file_path(
+                        course_dir, "Assignments", attachment["name"]
+                    )
+                    attachment_tasks.append(DownloadTask(
+                        file_id=att_id,
+                        file_url=attachment["url"],
+                        destination=destination,
+                        filename=attachment["name"],
+                        size_bytes=attachment["size"],
+                        course_name=course_name_full,
+                        is_update=False,
+                    ))
 
         # Download all attachment tasks in one parallel batch
         if attachment_tasks and not dry_run:
@@ -975,20 +979,44 @@ def main():
         _handle_export_config()
         return
 
-    if args.add_courses:
+    if args.add_courses or args.reselect_courses or args.remove_courses:
         if args.non_interactive or not sys.stdin.isatty():
-            logger.error("Adding courses needs an interactive terminal.")
+            logger.error("Changing the course list needs an interactive terminal.")
             sys.exit(1)
         if not (config.canvas_api_token and config.canvas_base_url):
             logger.error("Canvas API token/base URL not configured. Run --setup first.")
             sys.exit(1)
         manager = CourseManager(CanvasClient(config.canvas_base_url, config.canvas_api_token), config)
-        available = manager.detect_new_courses(manager.get_active_courses())
-        if not available:
-            logger.info("No unselected active courses found.")
-            return
-        selected = manager.interactive_course_selection(available)
-        manager.add_courses_to_config(selected)
+        all_courses = manager.get_active_courses()
+
+        if args.add_courses:
+            available = manager.detect_new_courses(all_courses)
+            if not available:
+                logger.info("No unselected active courses found.")
+                return
+            selected = manager.interactive_course_selection(available)
+            manager.add_courses_to_config(selected)
+        elif args.reselect_courses:
+            if not all_courses:
+                logger.info("No active courses found.")
+                return
+            selected = manager.interactive_course_selection(all_courses)
+            config.set("courses.whitelist", [c["id"] for c in selected])
+            config.save()
+            logger.info(f"Sync list replaced with {len(selected)} courses")
+        else:
+            synced = manager.get_synced_courses(all_courses)
+            if not synced:
+                logger.info("No active courses in the sync list to remove.")
+                return
+            selected = manager.interactive_course_selection(
+                synced, prompt_message="Enter courses to remove (comma-separated) or 'all': "
+            )
+            # Match on str so hand-edited whitelists with quoted IDs still work
+            remove = {str(c["id"]) for c in selected}
+            manager.remove_courses_from_config(
+                [cid for cid in config.get("courses.whitelist", []) if str(cid) in remove]
+            )
         return
 
     # Check if configured

@@ -14,7 +14,9 @@ def test_report_preserves_unselected_courses():
     assert report["new_count"] == 0
 
 
-@pytest.mark.parametrize("flag", ["--add-courses", "--export-config"])
+@pytest.mark.parametrize(
+    "flag", ["--add-courses", "--reselect-courses", "--remove-courses", "--export-config"]
+)
 @pytest.mark.parametrize("explicit", [True, False])
 def test_prompting_commands_reject_unattended_runs(monkeypatch, flag, explicit):
     monkeypatch.setattr(sys, "argv", ["main.py", flag] + (["--non-interactive"] if explicit else []))
@@ -49,3 +51,47 @@ def test_add_courses_selects_only_new_courses_and_does_not_sync(monkeypatch, ava
     else:
         manager.interactive_course_selection.assert_not_called()
         manager.add_courses_to_config.assert_not_called()
+
+
+def _run_course_command(monkeypatch, flag, whitelist, active, selected):
+    monkeypatch.setattr(sys, "argv", ["main.py", flag])
+    monkeypatch.setattr(sys.stdin, "isatty", lambda: True)
+    with patch.object(main_module, "Config") as config_cls, \
+         patch.object(main_module, "setup_logging"), \
+         patch.object(main_module, "CanvasClient"), \
+         patch.object(main_module, "CourseManager") as manager_cls, \
+         patch.object(main_module, "run_sync") as sync:
+        config = config_cls.return_value
+        config.get.side_effect = lambda key, default=None: (
+            whitelist if key == "courses.whitelist" else default
+        )
+        manager = manager_cls.return_value
+        manager.get_active_courses.return_value = active
+        manager.get_synced_courses.return_value = [
+            c for c in active if str(c["id"]) in {str(w) for w in whitelist}
+        ]
+        manager.interactive_course_selection.return_value = selected
+        main_module.main()
+    sync.assert_not_called()
+    return config, manager
+
+
+def test_reselect_courses_replaces_whitelist_and_does_not_sync(monkeypatch):
+    active = [{"id": 1, "code": "A"}, {"id": 2, "code": "B"}]
+    config, manager = _run_course_command(
+        monkeypatch, "--reselect-courses", [1], active, [active[1]]
+    )
+    manager.interactive_course_selection.assert_called_once_with(active)
+    config.set.assert_called_once_with("courses.whitelist", [2])
+    config.save.assert_called_once()
+
+
+def test_remove_courses_offers_only_synced_courses_and_does_not_sync(monkeypatch):
+    active = [{"id": 1, "code": "A"}, {"id": 2, "code": "B"}]
+    _, manager = _run_course_command(
+        monkeypatch, "--remove-courses", ["1", 2], active, [active[0]]
+    )
+    offered = manager.interactive_course_selection.call_args.args[0]
+    assert offered == active
+    # A quoted ID in a hand-edited whitelist is matched and removed as-is
+    manager.remove_courses_from_config.assert_called_once_with(["1"])
